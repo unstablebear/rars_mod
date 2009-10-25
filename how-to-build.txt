@@ -1,0 +1,22 @@
+Для сборки необходимы пакеты:
+
+libqt3-devel
+libqt3-headers
+libqt3-compat-headers
+libqt3-mt
+libqt3-mt-dev
+g++-3.3
+
+kde-devel
+
+после установки g++ возможно понадобится сделать для него линк:
+sudo ln -s /usr/bin/g++-3.3 /usr/bin/g++
+
+для сборки необходимо задать следующие переменные окружения:
+export QTDIR=/usr/lib/qt3
+export QTINC=/usr/include/qt3
+
+сборку делал с помощью sudo -E:
+sudo -E ./configure
+sudo -E make
+

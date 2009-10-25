@@ -32,7 +32,9 @@
 Os       os;
 Args     args;
 RaceData race_data;
-
+ofstream logFile;
+int loop_cnt = 0;
+int step_cnt = 0;
 //--------------------------------------------------------------------------
 //                          F U N C T I O N S
 //--------------------------------------------------------------------------
@@ -69,28 +71,40 @@ RaceManager::~RaceManager()
  */
 void RaceManager::ArgsInit( int argc, char* argv[] )
 {
+  printf("ArgsInit #START\n");
+
   // Set the track, car_count, lap_count, and various options:
   args.GetArgs(argc, argv);
   
+  //printf("ArgsInit #1\n");
   // Initialize the global currentTrack
   currentTrack = new Track(args.m_aTracks[args.m_iCurrentTrack]);
-
+  //printf("ArgsInit #2\n");
   // Init deprecated variables
   deprecated_init_globals();
-
+  //printf("ArgsInit #3\n");
   // For compatibility reason with the old get_names
   int i=0;
   while( drivers[i]!=NULL )
   {
+    //printf("ArgsInit #4\n");
     drivers[i]->init(i);
+    //printf("ArgsInit #5 !!  %i \n", i);
     i++;
   }
 
+    //printf("ArgsInit #6\n");
   // Initialize the random variable generator:
   randomizer();
-  
+    //printf("ArgsInit #7\n");
   // Write initial race data to report file:
   m_oReport.WriteBegin();
+
+  logFile.open(args.log_file);
+
+  logFile << "<race>" << endl << flush;
+
+  //printf("ArgsInit #8\n");
 }
 
 /**
@@ -253,7 +267,7 @@ int RaceManager::NormalRaceLoop()
     for(i=0; i<args.m_iNumCar; i++)         // for each car:
     { 
       race_data.cars[i]->CheckNearby(rel_state_vec); // report nearby cars
-
+      //      printf("Damage %i \n", race_data.cars[i]->s.damage);
       if( !race_data.cars[i]->out )
       {
         RobotTimer.startTimer();
@@ -282,6 +296,35 @@ int RaceManager::NormalRaceLoop()
         race_data.cars[i]->RecordMovie( m_oMovie );
     }
   }
+
+  loop_cnt++;
+  bool is_log_needed = false;
+  if((loop_cnt % args.log_interval) == 0)
+    {
+      is_log_needed = true;
+      step_cnt++;
+      logFile << "\t<step id=\"" << step_cnt << "\">" << endl;
+    }
+  
+  if(is_log_needed)
+    {
+      for(i=0; i<args.m_iNumCar; i++)             // for each car:
+	{
+	  race_data.cars[i]->CheckCollisions();
+
+	  logFile << "\t\t<car id=\"" << i<< "\" p=\"" << race_data.cars[i]->s.position + 1 << "\" a=\"" 
+		  << race_data.cars[i]->ang << "\" x=\"" << race_data.cars[i]->x << "\" y=\""
+		  << race_data.cars[i]->y << "\" d=\"" << race_data.cars[i]->damage << "\" ";
+
+	  if(race_data.cars[i]->collision_draw)
+	    logFile << "collision=\"true\" ";
+	  if((race_data.cars[i]->Laps - args.m_iNumLap) == 0)
+	    logFile << "finish=\"true\" ";
+
+	  logFile << "/>\n";
+	}
+      logFile << "\t</step>" << endl << flush;
+    }
 
   if(draw.m_bDisplay && draw.m_iFastDisplay > -1)
   {
@@ -344,6 +387,7 @@ int RaceManager::NormalRaceLoop()
     }
   }
 
+
   return(1);                           // repeats race loop as long as (1) is returned
 }
 
@@ -382,6 +426,7 @@ void RaceManager::RaceClose(long rl)
   {
     delete m_oMovie;
   }
+
 }
 
 /**
@@ -391,6 +436,12 @@ void RaceManager::RaceClose(long rl)
 void RaceManager::AllClose()
 {
   m_oReport.WriteFinal();
+
+  if(args.log_interval > 0)
+    {
+      logFile << "</race>" << flush;
+      logFile.close();
+    }
 
   // clean up, end graphics, back to normal
   int i=0;

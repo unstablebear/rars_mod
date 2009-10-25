@@ -1286,6 +1286,9 @@ con_vec KDriver::Drive(situation &s)
  //
  // Tell our name to the host on the first call
  //
+
+  //  printf("Drive id=%i  #START\n", s.my_ID);
+
  if (!fInitialized)
  {
   s.side_vision = 1;
@@ -1297,6 +1300,8 @@ con_vec KDriver::Drive(situation &s)
   return result;
  }
 
+ // printf("Drive id=%i  #10\n", s.my_ID);
+
  //
  // Initialize path data
  //
@@ -1304,9 +1309,15 @@ con_vec KDriver::Drive(situation &s)
   static int TrackNumber = -1;
   if( args.m_iCurrentTrack!=TrackNumber && get_track_description().NSEG>0 )
   {
+    //    printf("Drive id=%i  #11\n", s.my_ID);
    Initialize();
+   //   printf("Drive id=%i  #12\n", s.my_ID);
    TrackNumber = args.m_iCurrentTrack;
+   //    printf("Drive id=%i  #13\n", s.my_ID);
   }
+
+  //  printf("Drive id=%i  #END\n", s.my_ID);
+
  }
 
  //

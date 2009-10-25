@@ -54,6 +54,9 @@ Args::Args()
   m_iNumLap = 0;                 // Length of the race in laps, initially undefined
   m_iNumCar = 12;                // How many cars in the race
   m_iSurface = 1;                // default surface (1 hard)
+
+  log_interval = -1;
+
 }
 
 /**
@@ -106,6 +109,24 @@ void Args::GetArgs(int argc, char* argv[])
   {
     ptr = argv[cur_arg];
     c = *ptr;
+
+    if(cur_arg == 1)
+      {
+	log_interval = atoi(ptr);
+	printf("param1 = %i interval=%i\n", ptr, log_interval);
+	if(log_interval == 0)
+	  log_interval = -1;
+	continue; 
+      }
+    else
+      if(cur_arg == 2)
+	{
+	  if(log_interval > 0)
+	    log_file = ptr;
+	  printf("parameters %i %s\n", log_interval, log_file);
+	  continue; 
+	}
+
     if(c == '-' || c == '/')         // is this an option request?
     {
       ++ptr;
@@ -138,9 +159,20 @@ void Args::GetArgs(int argc, char* argv[])
               break;
               */
             }
-            temp_drv = drivers[n];
-            drivers[n] = drivers[i];
-            drivers[i] = temp_drv;
+	    int idx = find_name_from_idx(ptr, n);
+	    if (idx > 0)
+	      {
+		//		printf("args #swap %i %i", n, idx);
+		temp_drv = drivers[n];
+		drivers[n] = drivers[idx];
+		drivers[idx] = temp_drv;
+
+	      }
+	    else
+	      {
+		//		printf("args #new driver %i", n);
+		drivers[n] = getDriver(ptr);
+	      }
           }
           break;
         case 'D':                 // D for drivers to eliminate

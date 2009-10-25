@@ -84,6 +84,9 @@ class Args
     int  m_iNumTrack;           // Number of tracks in trackFileNames
     int  m_iCurrentTrack;       // Index of current
 
+    int log_interval;
+    char* log_file;
+
     Args();
     void GetArgs(int argc, char* argv[]); // command line processing
 };

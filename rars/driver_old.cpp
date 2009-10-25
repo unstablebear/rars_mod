@@ -53,10 +53,14 @@ con_vec DriverOld::drive( situation &s )
  */
 void DriverOld::init(int ID)
 {
+  printf("DriverOld:init #START\n");
   rel_state rel_state_vec[NEARBY_CARS];
+  printf("DriverOld:init #1\n");
   situation s = FillSituation(rel_state_vec);
+  printf("DriverOld:init #2 id=%i\n", ID);
   s.my_ID = ID;
   rob_ptr( s );
+  printf("DriverOld:init #3\n");
 }
 
 /**

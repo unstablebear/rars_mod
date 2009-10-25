@@ -131,3 +131,77 @@ Driver * drivers[] =
   new DriverOld( Bug,       oLIGHTGREEN,oLIGHTRED,   "car_lgreen_lred",  NULL,     "Bug" ),
 */
 };
+
+Driver* getDriver(char* driver_name)
+{
+  Driver* driver = NULL;
+  
+  if (strcmp(driver_name, "Sparky5") == 0) 
+    driver = new DriverOld( Sparky5,   oRED,       oBLACK,      "car_red_black",    NULL,     "Sparky5" );
+  else
+    if (strcmp(driver_name, "K1999") == 0) 
+      driver = new DriverOld( K1999,     oBLACK,     oBLACK,      "car_black_black",  NULL,     "K1999" );
+    else
+      if (strcmp(driver_name, "K2001") == 0) 
+	driver = new DriverOld( K2001,     oBLACK,     oBLACK,      "car_black_black",  NULL,     "K2001" );
+      else
+	if (strcmp(driver_name, "Jocosa83") == 0) 
+	  driver = new DriverOld( JOCOSA83,  oLIGHTMAGENTA, oLIGHTMAGENTA, "car_orange_orange",NULL,"Jocosa83" );
+	else
+	  if (strcmp(driver_name, "Felix16") == 0)
+	    driver = new DriverOld( Felix16,   oLIGHTGREEN,oLIGHTRED,   "car_lgreen_lred",  NULL,     "Felix16" );
+	  else
+	    if (strcmp(driver_name, "Apex1") == 0)
+	      driver = new DriverOld( Apex1,     oLIGHTGRAY, oLIGHTGRAY,  "car_gray_gray",    NULL,     "Apex1" );
+	    else
+	      if (strcmp(driver_name, "Dodger8") == 0)
+		driver = new DriverOld( Dodger6,   oWHITE,     oBLACK,      "car_white_black",  NULL,     "Dodger6" );
+	      else
+		if (strcmp(driver_name, "Apex8") == 0)
+		  driver = new DriverOld( Apex8,     oLIGHTGRAY, oLIGHTGRAY,  "car_gray_gray",    NULL,     "Apex8" );
+		else
+		  if (strcmp(driver_name, "Djoefe") == 0)
+		    driver = new DriverOld( Djoefe,    oYELLOW,    oYELLOW,     "car_yellow_yellow",NULL,     "Djoefe" );
+		  else
+		    if (strcmp(driver_name, "O1") == 0)
+		      driver = new DriverOld( O1,        oMAGENTA,   oMAGENTA,    "car_pink_pink",    NULL,     "O1" );
+		    else
+		      if (strcmp(driver_name, "OscCar2") == 0)
+			driver = new DriverOld( OscCar2,   oMAGENTA,   oMAGENTA,    "car_pink_pink",    NULL,     "OscCar2" );
+		      else
+			if (strcmp(driver_name, "DougE1") == 0)
+			  driver = new DriverOld( DougE1,    oBLUE,      oBLUE,       "car_blue_blue",    NULL,     "DougE1" );
+			else
+			  if (strcmp(driver_name, "Vector") == 0)
+			    driver = new DriverOld( Vector,    oRED,       oRED,        "car_red_red",      "porshe", "Vector" );
+			  else
+			    if (strcmp(driver_name, "Bulle") == 0)
+			      driver = new DriverOld( Bulle,     oGREEN,     oGREEN,      "car_green_green",  NULL,     "Bulle" );
+			    else
+			      if (strcmp(driver_name, "WappuCar") == 0)
+				driver = new DriverOld( WappuCar,  oWHITE,     oWHITE,      "car_white_white",  "futura", "WappuCar" );
+			      else
+				if (strcmp(driver_name, "Bulle2") == 0)
+				  driver = getBulle2Instance();
+				else
+				  if (strcmp(driver_name, "J++") == 0)
+				    driver = getJppInstance();
+				  else
+				    if (strcmp(driver_name, "Mafanja") == 0)
+				      driver = getMafanjaInstance();
+				    else
+				      if (strcmp(driver_name, "SmoothB") == 0)
+					driver = getSmoothBInstance();
+  #ifndef X_WINDOWS
+  // Human robots do not exist in XWindows
+				      else
+					if (strcmp(driver_name, "Human") == 0)
+					  driver = getHumanInstance();
+   #endif
+
+  //NULL
+  
+  
+
+  return driver;
+}

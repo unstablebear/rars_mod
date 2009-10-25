@@ -49,6 +49,7 @@ class Movie;
 
 // from DRIVERS.CPP
 extern Driver* drivers[];
+extern Driver getDriver(char* driver_name);
 
 // function to get a car out of a crash or pileup or spin-out:
 int stuck(int, double, double, double, double, double*, double*);

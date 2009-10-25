@@ -34,6 +34,7 @@ const char * Double2String( double val );
 
 // Other help functions
 int find_name(char* name);
+int find_name_from_idx(char* name, int idx);
 int collide(double, double, double);   // Return 1 for collision, else 0
 int incseg(int seg);                   // Return the next segment of the track 
 int decseg(int seg);                   // Return the previous segment of the track 

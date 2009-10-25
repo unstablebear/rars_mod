@@ -301,6 +301,23 @@ int find_name(char* name)
   return -1;
 }
 
+int find_name_from_idx(char* name, int idx)
+{
+  int i=idx, cmp;
+
+  while( drivers[i]!=NULL )
+  {
+    cmp = strcmp(name, drivers[i]->getName());
+    if(!cmp)
+    {
+      return i;
+    }
+    i++;
+  }
+  return -1;
+}
+
+
 /**
  * Call repeatedly to change direction by 180 degrees:
  *
