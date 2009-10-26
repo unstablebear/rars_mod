@@ -288,6 +288,7 @@ class CK1999Path // path
   double tEstimatedSpeed[MaxDivs];
   double tLane[MaxDivs];
   int tfConst[MaxDivs];
+  double ps;
 
   enum {K1999, K2001, Passing}; // types of path shape
 
@@ -381,7 +382,7 @@ static double GetControl(double At,
                          double An,
                          double v,
                          double mass,
-                         con_vec &result)
+                         con_vec &result, double ps)
 {
  int fAdjustP = 0;
  double At1 = 0;
@@ -394,7 +395,7 @@ static double GetControl(double At,
  {
   if (++Loops >= 40)
   {
-   OUTPUT("Control problem");
+    OUTPUT("Control problem");
    return At0;
   }
 
@@ -409,7 +410,7 @@ static double GetControl(double At,
    double x = cos(result.alpha) * CosTheta + sin(result.alpha) * SinTheta;
    double P = A * mass * result.vc * x;
    
-   if (At < 0 || (!fAdjustP && P < PM) || (fAdjustP && P < PM && P > 0.999 * PM))
+   if (At < 0 || (!fAdjustP && P < ps) || (fAdjustP && P < ps && P > 0.999 * ps))
     break;
 
    if (!fAdjustP)
@@ -420,7 +421,7 @@ static double GetControl(double At,
    }
    else
    {
-    if (P >= PM)
+    if (P >= ps)
     {
      At1 = At;
      P1 = P;
@@ -432,7 +433,7 @@ static double GetControl(double At,
     }
    }
 
-   At = At0 + (0.9995 * PM - P0) * (At1 - At0) / (P1 - P0);
+   At = At0 + (0.9995 * ps - P0) * (At1 - At0) / (P1 - P0);
   }
   else
   {
@@ -679,7 +680,7 @@ double CK1999Path::EstimateSpeed(int Step)
 
    double LatA = Speed * Speed * (tCurvature[prev] + tCurvature[i]) / 2;
 #if 0
-   double TanA = PM / (M * Speed);
+   double TanA = ps / (M * Speed);
 #else
    double TanA2 = TireAccel * TireAccel - LatA * LatA;
    double TanA = (TanA2 > 0 ? sqrt(TanA2) : 0);
@@ -689,7 +690,7 @@ double CK1999Path::EstimateSpeed(int Step)
     else
      LatA = -TireAccel;
    con_vec result;
-   TanA = GetControl(TanA, LatA, Speed, M, result);
+   TanA = GetControl(TanA, LatA, Speed, M, result, ps);
 #endif
 
    TotalTime += Time;
@@ -1246,6 +1247,7 @@ class KDriver
   double PrevFuel;
   CInterpolationContext ic;
   CInterpolationContext icNext;
+  double ps;
 
   KDriver(char * sNameInit, const CK1999Path &pathInit) :
 #ifdef LOG_DATA
@@ -1287,7 +1289,7 @@ con_vec KDriver::Drive(situation &s)
  // Tell our name to the host on the first call
  //
 
-  //  printf("Drive id=%i  #START\n", s.my_ID);
+  printf("Drive id=%i  #START ps = %f\n", s.my_ID, s.ps);
 
  if (!fInitialized)
  {
@@ -1297,6 +1299,7 @@ con_vec KDriver::Drive(situation &s)
   ID = s.my_ID;
   con_vec result;
   result.alpha = result.vc = 0.0;
+  //ps = s.ps;
   return result;
  }
 
@@ -1306,11 +1309,16 @@ con_vec KDriver::Drive(situation &s)
  // Initialize path data
  //
  {
+
+    pathK1999.ps = s.ps;
+
   static int TrackNumber = -1;
   if( args.m_iCurrentTrack!=TrackNumber && get_track_description().NSEG>0 )
   {
     //    printf("Drive id=%i  #11\n", s.my_ID);
+
    Initialize();
+   
    //   printf("Drive id=%i  #12\n", s.my_ID);
    TrackNumber = args.m_iCurrentTrack;
    //    printf("Drive id=%i  #13\n", s.my_ID);
@@ -1517,7 +1525,7 @@ con_vec KDriver::Drive(situation &s)
  // Compute alpha and vc from acceleration values
  //
  con_vec result;
- At = GetControl(At, An, s.v, mass, result);
+ At = GetControl(At, An, s.v, mass, result, s.ps);
 
  //
  // Log data to file

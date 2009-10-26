@@ -1414,7 +1414,7 @@ double	D13Path::EstimateSpeed( double damage, double fuel ) const
 				double	drag = DRAG_CON * spd * spd *
 								(2 * damage + MAX_DAMAGE) / MAX_DAMAGE;
 				double	dragA = drag / cMass;
-				double	tanA = cos(alpha) * PM / (cMass * spd);
+				double	tanA = cos(alpha) * m_pCar->s.ps / (cMass * spd);
 
 				if( tanA > maxA )
 					tanA = maxA;
@@ -3119,7 +3119,7 @@ void	D13CarSim::ForwardPath()
 
 	double	Tn = A * n;
 	double	Tt = A * t + Ad;
-	double	Et = PM / (spd * mass) * cSimDeltaTime;
+	double	Et = m_Car->s.ps / (spd * mass) * cSimDeltaTime;
 	if( Tt > Et )
 		Tt = Et;
 

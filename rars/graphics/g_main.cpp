@@ -58,15 +58,15 @@ int g_iLastKey;
 void main_part1()
 {
 
-  printf("g_main #START\n");
+  //printf("g_main #START\n");
 
   g_RaceManager.ArgsInit( g_argc, g_argv );
-  printf("g_main #1\n");
+  //printf("g_main #1\n");
   g_RaceManager.AllInit();
-  printf("g_main #2\n");
+  //printf("g_main #2\n");
   g_RaceStage = BEGIN;
 
-  printf("g_main #3\n");
+  //printf("g_main #3\n");
 
   // No display -> run all the loops and exit
   if( !draw.m_bDisplay )

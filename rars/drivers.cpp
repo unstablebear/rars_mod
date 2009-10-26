@@ -201,7 +201,5 @@ Driver* getDriver(char* driver_name)
 
   //NULL
   
-  
-
   return driver;
 }

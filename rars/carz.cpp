@@ -66,7 +66,7 @@
  * @param mass          (in) the mass of the car [unit]
  * @return              power excess
  */
-static double power_excess(double vc, double sine, double cosine, double v, double mass)
+static double power_excess(double vc, double sine, double cosine, double v, double mass, double ps)
 {
   double Ln, Lt;             // normal and tangential components of slip vector
   double l;                  // magnitude of slip vector, ft. per sec.
@@ -86,7 +86,7 @@ static double power_excess(double vc, double sine, double cosine, double v, doub
     Ft = -F * Lt/l;
   }
   // compute power excess over target value of .9975*PM:
-  return (vc < 0.0 ? -vc : vc) * (Ft * cosine + Fn * sine) - .9975*PM;
+  return (vc < 0.0 ? -vc : vc) * (Ft * cosine + Fn * sine) - .9975*ps;
 }
 
 /**
@@ -119,14 +119,14 @@ inline double SIGN(double a, double b)
  * @return              the max vc depending of the powerpi
  */
 static double zbrent(double sine, double cosine, double v, double x1, double x2, double mass,
-              double tol)
+		     double tol, double ps)
 {
   const int ITMAX = 20;
   const double EPS = 1.0e-8;
   int iter;
   double a=x1, b=x2, c=x2, d=0, e=0, min1, min2;
-  double fa=power_excess(a, sine, cosine, v, mass);
-  double fb=power_excess(b, sine, cosine, v, mass);
+  double fa=power_excess(a, sine, cosine, v, mass, ps);
+  double fb=power_excess(b, sine, cosine, v, mass, ps);
   double fc,p,q,r,s,tol1,xm;
   double Ln, Lt;      // normal and tangential components of slip vector
   double l;           // magnitude of slip vector, ft. per sec.
@@ -222,7 +222,7 @@ static double zbrent(double sine, double cosine, double v, double x1, double x2,
       Ft = -F * Lt/l;
     }
     // compute power delivered:
-    fb = (b < 0.0 ? -b : b) * (Ft * cosine + Fn * sine) - .9975*PM;
+    fb = (b < 0.0 ? -b : b) * (Ft * cosine + Fn * sine) - .9975*ps;
   }
   return b;
 }
@@ -305,8 +305,14 @@ Car::Car(int i)
 {
   which = i;                    // Each car has it own index into race_data.cars[]
   driver = drivers[i];          // Each car has a pointer to its driver.
+
+  damage = driver->m_iInitDamage;
+  s.ps = driver->m_iPs;
+  //printf("!!!!! %f\n", s.ps);
+
   nose_color = drivers[i]->getNoseColor();
   tail_color = drivers[i]->getTailColor();
+
   x = y = 0;   // This is for initializing of cars in qualifications
   X = Y = Z = 0;
   prex = 0;        // These 3 are initialized so that
@@ -515,6 +521,8 @@ void Car::MoveCar()
   ////
   // check accumulated damage and fuel, take car out of race if necessary:
 
+  //printf("Move car #1 x = %f \n", x);
+
   if(damage > MAX_DAMAGE || fuel <= 0.0 || (race_data.stage == QUALIFYING && laps >= args.m_iNumQualLap))
   {
     if(offroad)
@@ -570,6 +578,8 @@ void Car::MoveCar()
   {
     return;
   }
+
+  //printf("Move car #2 x = %f \n", x);
 
   ////
   //// PIT CODE
@@ -663,6 +673,8 @@ void Car::MoveCar()
     }
   }  // end of go_pits
 
+  //printf("Move car #3 x = %f \n", x);
+
   if (out_pits == 1)
   {
     if(pdist <= currentTrack->m_fPitExit+currentTrack->length/2) // still on pit lane
@@ -716,6 +728,8 @@ void Car::MoveCar()
     }
   }
 
+  //printf("Move car #4 x = %f \n", x);
+
   ////
   //// CALC POWER AND MOVE CAR
   ////
@@ -739,19 +753,19 @@ VC:    // maybe loop to control power (we don't permit P > PM)
   }
   // compute power delivered:
   P = (vc < 0.0 ? -vc : vc) * (Ft * cosine + Fn * sine);
-
+  //  printf("Move car %i #5 x = %f ps = %f\n", which, x, s.ps);
   if(!it)                              // If this is the first time through here, then:
   {
-    power_req = P/PM;                  // Tell the driver how much power it requested.
-    if(P > PM)                         // If the request was too high, reduce it to 100% pwr.
+    power_req = P/s.ps;                  // Tell the driver how much power it requested.
+    if(P > s.ps)                         // If the request was too high, reduce it to 100% pwr.
     {
       ++it;
-      vc = zbrent(sine, cosine, v, v * cosine, vc, mass, .006);
+      vc = zbrent(sine, cosine, v, v * cosine, vc, mass, .006, s.ps);
       goto VC;
     }
   }
-  power = P/PM;                        // store this value in the car object
-
+  power = P/s.ps;                        // store this value in the car object
+  //printf("Move car #6 x = %f \n", x);
   // put some randomness in the magnitude of the traction force, F:
   // (Ft might be set to 0.0 above, in which case F will be zero.)
   if(Ft != 0.0 && args.m_bRandomMotion)
@@ -762,7 +776,7 @@ VC:    // maybe loop to control power (we don't permit P > PM)
   {
     temp = 1.0;
   }
-
+  //printf("Move car #7 x = %f \n", x);
   // compute centripetal and tangential acceleration components:
   cen_a = Fn * temp /  mass;
   tan_a = (Ft * temp - D) / mass;
@@ -779,7 +793,7 @@ VC:    // maybe loop to control power (we don't permit P > PM)
     // damage from grass reduced 5x in version 0.70
     damage += (unsigned long)((tan_a * tan_a + cen_a * cen_a) / 50);
   }
-
+  //printf("Move car #8 x = %f \n", x);
   if(v < .0001)                        // prevent division by zero
   {
     adot = sine = cosine = 0.0;
@@ -791,9 +805,10 @@ VC:    // maybe loop to control power (we don't permit P > PM)
   }
   x_a = tan_a * cosine - cen_a * sine; // x & y components of acceleration
   y_a = cen_a * cosine + tan_a * sine;
-
+  //  printf("Move car #9 x = %f \n", x);
   // Advance the state using the Adam's predictor formula:
   x += (1.5 * xdot - .5 * pre_xdot) * delta_time;
+  //printf("Move car #10 x = %f \n", x);
   y += (1.5 * ydot - .5 * pre_ydot) * delta_time;
   pre_xdot = xdot;  pre_ydot = ydot;
   xdot += (1.5 * x_a - .5 * pre_x_a) * delta_time;
@@ -803,6 +818,7 @@ VC:    // maybe loop to control power (we don't permit P > PM)
   {
     ang = atan2(ydot,xdot);            // new orientation angle
   }
+  //printf("Move car #100 x = %f \n", x);
 }
 
 /**
@@ -1070,7 +1086,7 @@ void Car::PutCar(double x_pos, double y_pos, double alf_ang)
   if(race_data.stage == QUALIFYING) seg_id = 0;  //in race this is set by arrange_cars
   laps_lead = last_pit_visit = pit_stops = 0;
   pitting = go_pits = out_pits = on_pit_lane = coming_from_pits = 0;
-  out = done = lap_flag = init_flag = dead_ahead = damage = 0;
+  out = done = lap_flag = init_flag = dead_ahead = 0;
   distance = Behind_leader = Behind_next = Ahead_next = 0.0;
   vc = STARTING_SPEED;
   xdot = STARTING_SPEED*cos(ang);
@@ -1104,6 +1120,9 @@ void Car::PutCar(double x_pos, double y_pos, double alf_ang)
  */
 void Car::Observe()
 {
+
+  //printf("Observe #START id = %ld \n", damage);
+
   double rad;                          // current radius
   double dx, dy, xp, yp;
   double sine, cosine;
@@ -1116,6 +1135,8 @@ void Car::Observe()
   {
     return;
   }
+
+
 
   s.v      = vec_mag(xdot, ydot);      // the actual speed
   s.dead_ahead = dead_ahead;           // copy the value set by move_car()
@@ -1136,6 +1157,7 @@ void Car::Observe()
   s.my_ID = which;
   s.fuel_mileage = fuel_mileage;       // miles per lb.
   s.behind_leader = Behind_leader;
+  s.ps = driver->m_iPs;
 
   // Copy private variables to public area:
   X = x;    Y = y;    Done = done;    Out = out;
@@ -1149,6 +1171,7 @@ void Car::Observe()
   Last_crossing = last_crossing;    Offroad = offroad;
   Veryoffroad = veryoffroad;    Damage = damage;
 
+  //printf("Observe #1 id = %ld \n", damage);
 
   // Computations below are based on the data in lftwall[] and
   // rgtwall[].  Radii are based on the inside rail in each case.
@@ -1477,6 +1500,8 @@ void Car::Observe()
     distance += currentTrack->length;
   }
   s.distance = distance;
+
+  //printf("Observe #END1 id = %ld \n", damage);
 
   if(s.backward)
   {

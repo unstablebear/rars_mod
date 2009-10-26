@@ -49,7 +49,7 @@ class Movie;
 
 // from DRIVERS.CPP
 extern Driver* drivers[];
-extern Driver getDriver(char* driver_name);
+extern Driver* getDriver(char* driver_name);
 
 // function to get a car out of a crash or pileup or spin-out:
 int stuck(int, double, double, double, double, double*, double*);
@@ -201,6 +201,7 @@ struct situation             // a car's local situation as seen by the driver
   int side_vision;           // allow cars alongside in s.nearby data
   rel_state* nearby;         // relative states of three cars in front of you 
   void* data_ptr;            // pointer to driver's scratchpad RAM area 
+  double ps;
 };
 
 /**
@@ -241,6 +242,11 @@ public:
   const char * getBitmapName2D();
   const char * getModel3D();
   const char * getName();
+
+  char* m_sId;
+  unsigned long m_iInitDamage;
+  double m_iPs;
+
   void setName( char * _name );
   int getNoseColor();
   void setNoseColor( int color );

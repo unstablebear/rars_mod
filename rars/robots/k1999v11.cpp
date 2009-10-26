@@ -282,7 +282,7 @@ class CK1999Path // path
   double GetCurvature(int prev, double x, double y, int next) const;
   void AnalyzePath(int Step = 1);
   void AnticipateBraking(int Step = 1);
-  double EstimateSpeed(int Step = 1);
+  double EstimateSpeed(int Step = 1, double ps);
   void AdjustRadius(int prev,
                     int i,
                     int next,
@@ -366,7 +366,8 @@ static double GetControl(double At,
                          double An,
                          double v,
                          double mass,
-                         con_vec &result)
+                         con_vec &result,
+			 double ps)
 {
  int fAdjustP = 0;
  double At1 = 0;
@@ -379,7 +380,7 @@ static double GetControl(double At,
  {
   if (++Loops >= 40)
   {
-   OUTPUT("Control problem");
+    OUTPUT("Control problem");
    return At0;
   }
 
@@ -394,7 +395,7 @@ static double GetControl(double At,
    double x = cos(result.alpha) * CosTheta + sin(result.alpha) * SinTheta;
    double P = A * mass * result.vc * x;
    
-   if (At < 0 || (!fAdjustP && P < PM) || (fAdjustP && P < PM && P > 0.999 * PM))
+   if (At < 0 || (!fAdjustP && P < ps) || (fAdjustP && P < ps && P > 0.999 * ps))
     break;
 
    if (!fAdjustP)
@@ -405,7 +406,7 @@ static double GetControl(double At,
    }
    else
    {
-    if (P >= PM)
+    if (P >= ps)
     {
      At1 = At;
      P1 = P;
@@ -417,7 +418,7 @@ static double GetControl(double At,
     }
    }
 
-   At = At0 + (0.9995 * PM - P0) * (At1 - At0) / (P1 - P0);
+   At = At0 + (0.9995 * ps - P0) * (At1 - At0) / (P1 - P0);
   }
   else
   {
@@ -647,7 +648,7 @@ void CK1999Path::AnticipateBraking(int Step)
 /////////////////////////////////////////////////////////////////////////////
 // Estimate average lap speed
 /////////////////////////////////////////////////////////////////////////////
-double CK1999Path::EstimateSpeed(int Step)
+double CK1999Path::EstimateSpeed(int Step, double ps)
 {
  double TotalTime;
  const int last = ((Divs - Step) / Step) * Step;
@@ -664,7 +665,7 @@ double CK1999Path::EstimateSpeed(int Step)
 
    double LatA = Speed * Speed * (tCurvature[prev] + tCurvature[i]) / 2;
 #if 0
-   double TanA = PM / (M * Speed);
+   double TanA = ps / (M * Speed);
 #else
    double TanA2 = TireAccel * TireAccel - LatA * LatA;
    double TanA = (TanA2 > 0 ? sqrt(TanA2) : 0);
@@ -1231,6 +1232,8 @@ class KDriver
   CInterpolationContext ic;
   CInterpolationContext icNext;
 
+  double ps;
+
   KDriver(const char * sNameInit, const CK1999Path &pathInit) :
 #ifdef LOG_DATA
    ofsLog((sNameInit + ".log").c_str()),
@@ -1491,7 +1494,7 @@ con_vec KDriver::Drive(situation &s)
  // Compute alpha and vc from acceleration values
  //
  con_vec result;
- At = GetControl(At, An, s.v, mass, result);
+ At = GetControl(At, An, s.v, mass, result, s->ps);
 
  //
  // Log data to file

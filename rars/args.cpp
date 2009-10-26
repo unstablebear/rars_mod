@@ -99,7 +99,7 @@ void Args::GetArgs(int argc, char* argv[])
   char option;         // holds the option code
   char lastext[81];   // the last text argument processed
   lastext[0] = 0;
-
+  int car_param_idx = 0;
   Driver * temp_drv;
   int n, k;
 
@@ -139,15 +139,23 @@ void Args::GetArgs(int argc, char* argv[])
           exit(0);
         case 'd':                          // d for drivers
           // re-arrange drivers[] array according to names in command line
+	  car_param_idx = cur_arg;
           for( n=0; n<MAX_CARS; n++ )  
           {
-            ++cur_arg;
-            if (cur_arg == argc)
+            car_param_idx = ++car_param_idx;
+            if (car_param_idx == argc)
             {
               break;
             }
+	    
+	    char* car_id = argv[car_param_idx++];
 
-            ptr = argv[cur_arg];
+	    //printf("cars %i id = %s\n", n, car_id);
+
+            ptr = argv[car_param_idx++];
+
+	    //printf("cars %i name = %s\n", n, ptr);
+
             if((i = find_name(ptr)) < 0)
             {
               //TODO: it must be possible to replay with unknown drivers.
@@ -160,9 +168,19 @@ void Args::GetArgs(int argc, char* argv[])
               */
             }
 	    int idx = find_name_from_idx(ptr, n);
+	    //printf("#1\n");
+	    double ps = atof(argv[car_param_idx]);
+	    //printf("#2\n");
+	    //printf("cars %i ps = %f s = %s\n", n, ps, argv[car_param_idx]);
+
+	    car_param_idx++;
+	    unsigned long init_damage = strtol(argv[car_param_idx], NULL, 10);
+	    //printf("cars %i init_damage = %ld\n", n, init_damage);
+
 	    if (idx > 0)
 	      {
-		//		printf("args #swap %i %i", n, idx);
+		//printf("#3\n");
+		//		//printf("args #swap %i %i", n, idx);
 		temp_drv = drivers[n];
 		drivers[n] = drivers[idx];
 		drivers[idx] = temp_drv;
@@ -170,10 +188,20 @@ void Args::GetArgs(int argc, char* argv[])
 	      }
 	    else
 	      {
+		//printf("#4\n");
 		//		printf("args #new driver %i", n);
 		drivers[n] = getDriver(ptr);
 	      }
+
+	    //printf("#5\n");
+	    drivers[n]->m_sId = car_id;
+	    drivers[n]->m_iInitDamage = init_damage;
+	    drivers[n]->m_iPs = ps;
+	    //printf("#20\n");
+
           }
+	    //printf("#200000000000\n");
+	  cur_arg = car_param_idx;
           break;
         case 'D':                 // D for drivers to eliminate
           // re-arrange drivers[] array according to names in command line

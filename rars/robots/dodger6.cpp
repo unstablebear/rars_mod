@@ -1019,7 +1019,7 @@ public:
 	void			CalcSpeedSection( int from, int len );
 	void			SetInitialSpeed( int from, int len );
 	void			PropagateBraking( int from, int len );
-	double			EstimateSpeed() const;
+	double			EstimateSpeed(situation &s) const;
 
 private:
 	const D6Slices*	m_pSlices;
@@ -1205,7 +1205,7 @@ void	D6Path::PropagateBraking( int from, int len )
 	}
 }
 
-double	D6Path::EstimateSpeed() const
+double	D6Path::EstimateSpeed(situation &s) const
 {
 	const double	cMaxA = MAX_ACCEL * CORN_MYU;
 	const double	cMass = (M + MAX_FUEL / g);
@@ -1245,7 +1245,7 @@ double	D6Path::EstimateSpeed() const
 				double	maxA = inner <= 0 ? 0 : sqrt(inner);
 
 				double	drag = DRAG_CON * spd * spd / cMass;
-				double	tanA = cos(alpha) * PM / (cMass * spd);
+				double	tanA = cos(alpha) * s.ps / (cMass * spd);
 
 				if( tanA > maxA )
 					tanA = maxA;
@@ -2424,7 +2424,7 @@ static bool	AvoidOtherCars(
 		double	maxA = inner <= 0 ? 0 : sqrt(inner);
 
 		// double	drag = DRAG_CON * s.v * s.v / cMass;
-		tanA = cos(alpha) * PM / (cMass * s.v);
+		tanA = cos(alpha) * s.ps / (cMass * s.v);
 
 		if( tanA > maxA )
 			tanA = maxA;
@@ -2852,7 +2852,7 @@ con_vec Dodger6( situation& s )
 				pOptPath->Optimise();
 			pCarPaths = new D6CarPaths(s.my_ID, slices, *pOptPath);
       if( s.my_ID<=args.m_iNumCar )
-			  speedEstimate = pCarPaths->GetPath(s.my_ID).EstimateSpeed();
+			  speedEstimate = pCarPaths->GetPath(s.my_ID).EstimateSpeed(s);
 		}
 
 		cur_p = 0;
@@ -2961,7 +2961,7 @@ calcTargets:
 	{
 		D6Path	bestPath = pCarPaths->GetBestPath();
 		bestPath.CalcSpeed();
-		double	bestSpeedEstimate = bestPath.EstimateSpeed();
+		double	bestSpeedEstimate = bestPath.EstimateSpeed(s);
 
 		if( speedEstimate + 0.1 < bestSpeedEstimate )
 		{
