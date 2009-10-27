@@ -1289,7 +1289,7 @@ con_vec KDriver::Drive(situation &s)
  // Tell our name to the host on the first call
  //
 
-  printf("Drive id=%i  #START ps = %f\n", s.my_ID, s.ps);
+  //  printf("Drive id=%i  #START ps = %f\n", s.my_ID, s.ps);
 
  if (!fInitialized)
  {
