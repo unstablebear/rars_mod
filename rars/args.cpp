@@ -113,7 +113,7 @@ void Args::GetArgs(int argc, char* argv[])
     if(cur_arg == 1)
       {
 	log_interval = atoi(ptr);
-	printf("param1 = %i interval=%i\n", ptr, log_interval);
+	//	printf("param1 = %i interval=%i\n", ptr, log_interval);
 	if(log_interval == 0)
 	  log_interval = -1;
 	continue; 
@@ -123,7 +123,7 @@ void Args::GetArgs(int argc, char* argv[])
 	{
 	  if(log_interval > 0)
 	    log_file = ptr;
-	  printf("parameters %i %s\n", log_interval, log_file);
+	  //printf("parameters %i %s\n", log_interval, log_file);
 	  continue; 
 	}
 
