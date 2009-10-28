@@ -362,7 +362,7 @@ int RaceManager::NormalRaceLoop()
 	    race_data.cars[i]->is_collision_happens = false;
 	    logFile << "collision=\"true\" ";
 	  }
-	  if((race_data.cars[i]->Laps - args.m_iNumLap) == 0)
+	  if(race_data.cars[i]->done == 1)
 	    logFile << "finish=\"true\" ";
 
 	  logFile << "/>\n";
