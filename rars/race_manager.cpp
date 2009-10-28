@@ -356,9 +356,12 @@ int RaceManager::NormalRaceLoop()
 	  logFile << "\t\t<car id=\"" << race_data.cars[i]->driver->m_sId << "\" p=\"" << race_data.cars[i]->s.position + 1 << "\" a=\"" 
 		  << race_data.cars[i]->ang << "\" x=\"" << race_data.cars[i]->x << "\" y=\""
 		  << race_data.cars[i]->y << "\" d=\"" << race_data.cars[i]->damage << "\" ";
-
-	  if(race_data.cars[i]->collision_draw)
+	  
+	  if(race_data.cars[i]->is_collision_happens)
+	  {
+	    race_data.cars[i]->is_collision_happens = false;
 	    logFile << "collision=\"true\" ";
+	  }
 	  if((race_data.cars[i]->Laps - args.m_iNumLap) == 0)
 	    logFile << "finish=\"true\" ";
 

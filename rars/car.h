@@ -402,6 +402,7 @@ public:
   double Q_bestlap;                    // best lap time in qualifying  
   double Q_avgspeed;                   // average speed of qual attempt
   double prex2, prey2, prang2;
+  bool is_collision_happens;
 
   Car(int);                            // constructor
   ~Car();                              // destructor

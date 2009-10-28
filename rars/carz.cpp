@@ -1005,6 +1005,8 @@ void Car::CheckCollisions()
     c_x2 = race_data.cars[i]->xdot * c_cosine + race_data.cars[i]->ydot * c_sine;
     c_y2 = -race_data.cars[i]->xdot * c_sine + race_data.cars[i]->ydot * c_cosine;
 
+    
+
     // calculate the impact speed along impact vector
     temp = fabs(c_x2 - c_x1);
 
@@ -1048,6 +1050,7 @@ void Car::CheckCollisions()
       damage +=(unsigned long) (.50 * temp);
       race_data.cars[i]->damage +=(unsigned long) (.25 * temp);
       collision_draw = race_data.cars[i]->collision_draw = COLLISION_FLASH | 1;
+      race_data.cars[i]->is_collision_happens = true;
     }
   }
 }
