@@ -38,7 +38,7 @@ enum RACESTAGE
 ////
 //// Variables
 ////
-extern char * g_argv[50];
+extern char * g_argv[1000];
 extern int g_argc;
 
 ////
