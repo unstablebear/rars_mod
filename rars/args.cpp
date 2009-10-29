@@ -167,7 +167,7 @@ void Args::GetArgs(int argc, char* argv[])
               break;
               */
             }
-	    int idx = find_name_from_idx(ptr, n);
+	    int idx = find_name(ptr);
 	    //printf("#1\n");
 	    double ps = atof(argv[car_param_idx]);
 	    //printf("#2\n");
@@ -177,30 +177,16 @@ void Args::GetArgs(int argc, char* argv[])
 	    unsigned long init_damage = strtol(argv[car_param_idx], NULL, 10);
 	    //printf("cars %i init_damage = %ld\n", n, init_damage);
 
-	    if (idx > 0)
-	      {
-		//printf("#3\n");
-		//		//printf("args #swap %i %i", n, idx);
 		temp_drv = drivers[n];
 		drivers[n] = drivers[idx];
 		drivers[idx] = temp_drv;
 
-	      }
-	    else
-	      {
-		//printf("#4\n");
-		//		printf("args #new driver %i", n);
-		drivers[n] = getDriver(ptr);
-	      }
-
-	    //printf("#5\n");
-	    drivers[n]->m_sId = car_id;
-	    drivers[n]->m_iInitDamage = init_damage;
-	    drivers[n]->m_iPs = ps;
-	    //printf("#20\n");
+		drivers[n]->m_sId = car_id;
+		drivers[n]->m_iInitDamage = init_damage;
+		drivers[n]->m_iPs = ps;
 
           }
-	    //printf("#200000000000\n");
+
 	  cur_arg = car_param_idx;
           break;
         case 'D':                 // D for drivers to eliminate
