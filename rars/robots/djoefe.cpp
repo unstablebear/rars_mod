@@ -781,10 +781,10 @@ con_vec Djoefe (situation & s)
 
    // If we are damaged or are too close to the edge, abort the
    // race by deliberate crashing
-   if((s.damage)||
+   /*   if((s.damage)||
       (s.to_lft<EdgeLimit)||
       (s.to_rgt<EdgeLimit))
-     AbortRace = 1;
+      AbortRace = 1;*/
 
    if(AbortRace)
    {

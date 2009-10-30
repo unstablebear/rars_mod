@@ -32,6 +32,7 @@
 Os       os;
 Args     args;
 RaceData race_data;
+
 ofstream logFile;
 int loop_cnt = 0;
 int step_cnt = 0;
@@ -351,7 +352,7 @@ int RaceManager::NormalRaceLoop()
     {
       for(i=0; i<args.m_iNumCar; i++)             // for each car:
 	{
-	  race_data.cars[i]->CheckCollisions();
+	  //	  race_data.cars[i]->CheckCollisions();
 
 	  logFile << "\t\t<car id=\"" << race_data.cars[i]->driver->m_sId << "\" p=\"" << race_data.cars[i]->s.position + 1 << "\" a=\"" 
 		  << race_data.cars[i]->ang << "\" x=\"" << race_data.cars[i]->x << "\" y=\""

@@ -1065,7 +1065,7 @@ void CK1999Path::Optimize()
 /////////////////////////////////////////////////////////////////////////////
 // Initialize path data
 /////////////////////////////////////////////////////////////////////////////
-static void Initialize()
+static void Initialize(double ps)
 {
  SideDistExt = 4.0;
  SideDistInt = 0.5;
@@ -1074,7 +1074,9 @@ static void Initialize()
  SplitTrack();
  pathK1999.Reset();
  OUTPUT(Track.sName);
-
+ pathK1999.ps = ps;
+ pathEmergency.ps = ps;
+ pathK2001.ps = ps;
  //
  // Offset distance ??? first segment must be a straight
  //
@@ -1290,7 +1292,7 @@ con_vec KDriver::Drive(situation &s)
   static int TrackNumber = -1;
   if (Track::currentTrackFileName != TrackNumber && get_track_description().NSEG > 0)
   {
-   Initialize();
+   Initialize(s.ps);
    TrackNumber = Track::currentTrackFileName;
   }
  }

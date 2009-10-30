@@ -288,6 +288,7 @@ class CK1999Path // path
   double tEstimatedSpeed[MaxDivs];
   double tLane[MaxDivs];
   int tfConst[MaxDivs];
+
   double ps;
 
   enum {K1999, K2001, Passing}; // types of path shape
@@ -395,7 +396,7 @@ static double GetControl(double At,
  {
   if (++Loops >= 40)
   {
-    OUTPUT("Control problem");
+   OUTPUT("Control problem");
    return At0;
   }
 
@@ -409,7 +410,12 @@ static double GetControl(double At,
    result.vc = (L * CosTheta + v) / cos(result.alpha);
    double x = cos(result.alpha) * CosTheta + sin(result.alpha) * SinTheta;
    double P = A * mass * result.vc * x;
-   
+
+   if(ps != 120000)
+     {
+     OUTPUT("ps1 = " << ps << "\n");
+     }
+
    if (At < 0 || (!fAdjustP && P < ps) || (fAdjustP && P < ps && P > 0.999 * ps))
     break;
 
@@ -680,6 +686,11 @@ double CK1999Path::EstimateSpeed(int Step)
 
    double LatA = Speed * Speed * (tCurvature[prev] + tCurvature[i]) / 2;
 #if 0
+   if(ps != 120000)
+     {
+     OUTPUT("ps2 = " << ps << "\n");
+     }
+   //   OUTPUT("ps = " << ps << "\n");
    double TanA = ps / (M * Speed);
 #else
    double TanA2 = TireAccel * TireAccel - LatA * LatA;
@@ -1081,8 +1092,9 @@ void CK1999Path::Optimize()
 /////////////////////////////////////////////////////////////////////////////
 // Initialize path data
 /////////////////////////////////////////////////////////////////////////////
-static void Initialize()
+static void Initialize(double ps)
 {
+  
  SideDistExt = 4.0;
  SideDistInt = 0.5;
  TireAccel = g * tFriction[args.m_iSurface];
@@ -1090,6 +1102,14 @@ static void Initialize()
  SplitTrack();
  pathK1999.Reset();
  OUTPUT(currentTrack->m_sFileName);
+   if(ps != 120000)
+     {
+     OUTPUT("ps3 = " << ps << "\n");
+     }
+   // OUTPUT("ps = " << ps << "\n");
+ pathK1999.ps = ps;
+ pathK2001.ps = ps;
+ pathEmergency.ps = ps;
 
  //
  // Offset distance ??? first segment must be a straight
@@ -1247,9 +1267,8 @@ class KDriver
   double PrevFuel;
   CInterpolationContext ic;
   CInterpolationContext icNext;
-  double ps;
 
-  KDriver(char * sNameInit, const CK1999Path &pathInit) :
+  KDriver(char * sNameInit, CK1999Path &pathInit) :
 #ifdef LOG_DATA
    ofsLog((sNameInit + ".log").c_str()),
 #endif
@@ -1269,7 +1288,7 @@ class KDriver
    TotalDamage(0),
    PrevDamage(0),
    TotalFuel(0),
-   PrevFuel(0) 
+   PrevFuel(0)
    {
 	  strcpy( sName, sNameInit );
    }
@@ -1288,9 +1307,6 @@ con_vec KDriver::Drive(situation &s)
  //
  // Tell our name to the host on the first call
  //
-
-  //  printf("Drive id=%i  #START ps = %f\n", s.my_ID, s.ps);
-
  if (!fInitialized)
  {
   s.side_vision = 1;
@@ -1299,33 +1315,19 @@ con_vec KDriver::Drive(situation &s)
   ID = s.my_ID;
   con_vec result;
   result.alpha = result.vc = 0.0;
-  //ps = s.ps;
   return result;
  }
-
- // printf("Drive id=%i  #10\n", s.my_ID);
 
  //
  // Initialize path data
  //
  {
-
-    pathK1999.ps = s.ps;
-
   static int TrackNumber = -1;
   if( args.m_iCurrentTrack!=TrackNumber && get_track_description().NSEG>0 )
   {
-    //    printf("Drive id=%i  #11\n", s.my_ID);
-
-   Initialize();
-   
-   //   printf("Drive id=%i  #12\n", s.my_ID);
+   Initialize(s.ps);
    TrackNumber = args.m_iCurrentTrack;
-   //    printf("Drive id=%i  #13\n", s.my_ID);
   }
-
-  //  printf("Drive id=%i  #END\n", s.my_ID);
-
  }
 
  //
