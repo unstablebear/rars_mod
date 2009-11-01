@@ -160,20 +160,24 @@ void Args::GetArgs(int argc, char* argv[])
               break;
               */
             }
-	    int idx = find_name(ptr);
+	    int idx = find_name_from_idx(ptr, n);
 	    double pm = atof(argv[car_param_idx]);
 
 	    car_param_idx++;
 	    unsigned long init_damage = strtol(argv[car_param_idx], NULL, 10);
 
-	    temp_drv = drivers[n];
-	    drivers[n] = drivers[idx];
-	    drivers[idx] = temp_drv;
-
-	    drivers[n]->id = car_id;
-	    drivers[n]->init_damage = init_damage;
-	    drivers[n]->pm = pm;
-
+	    if (idx > 0)
+	    {
+	      temp_drv = drivers[n];
+	      drivers[n] = drivers[idx];
+	      drivers[idx] = temp_drv;
+	    }
+	    else
+	    {
+	      drivers[n]->id = car_id;
+	      drivers[n]->init_damage = init_damage;
+	      drivers[n]->pm = pm;
+	    }
           }
 
 	  cur_arg = car_param_idx;
