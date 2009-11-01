@@ -190,7 +190,7 @@ Driver* getDriver(char* driver_name)
 				    if (strcmp(driver_name, "Mafanja") == 0)
 				      driver = getMafanjaInstance();
 				    else
-				      if (strcmp(driver_name, "SmoothB") == 0)
+				      if (strcmp(driver_name, "SmoothB2") == 0)
 					driver = getSmoothBInstance();
   #ifndef X_WINDOWS
   // Human robots do not exist in XWindows
