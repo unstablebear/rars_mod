@@ -1245,7 +1245,7 @@ double	D6Path::EstimateSpeed(situation &s) const
 				double	maxA = inner <= 0 ? 0 : sqrt(inner);
 
 				double	drag = DRAG_CON * spd * spd / cMass;
-				double	tanA = cos(alpha) * s.ps / (cMass * spd);
+				double	tanA = cos(alpha) * s.pm / (cMass * spd);
 
 				if( tanA > maxA )
 					tanA = maxA;
@@ -2424,7 +2424,7 @@ static bool	AvoidOtherCars(
 		double	maxA = inner <= 0 ? 0 : sqrt(inner);
 
 		// double	drag = DRAG_CON * s.v * s.v / cMass;
-		tanA = cos(alpha) * s.ps / (cMass * s.v);
+		tanA = cos(alpha) * s.pm / (cMass * s.v);
 
 		if( tanA > maxA )
 			tanA = maxA;

@@ -22,7 +22,7 @@
 /**
  * Constructor fo the old type of cars
  */
-DriverOld::DriverOld( robot * _rob_ptr, int nose_color, int tail_color, const char * _bitmap_name, const char * _model_3d, const char * _rob_name) : Driver()
+DriverOld::DriverOld( robot * _rob_ptr, int nose_color, int tail_color, const char * _bitmap_name, const char * _model_3d, const char * _rob_name ) : Driver()
 {
   rob_ptr = _rob_ptr;
   m_iNoseColor = nose_color;
@@ -34,7 +34,6 @@ DriverOld::DriverOld( robot * _rob_ptr, int nose_color, int tail_color, const ch
   // default value
   m_sAuthor = (char *)"-";
   m_sDescription  = (char *)"-";
-
 }
 
 /**
@@ -54,17 +53,12 @@ con_vec DriverOld::drive( situation &s )
  */
 void DriverOld::init(int ID)
 {
-  //  printf("DriverOld:init #START\n");
   rel_state rel_state_vec[NEARBY_CARS];
-  //  printf("DriverOld:init #1\n");
   situation s = FillSituation(rel_state_vec);
-  s.damage = m_iInitDamage;
-  s.ps = m_iPs;
-
-  //  printf("DriverOld:init #2 id=%i\n", ID);
+  s.damage = init_damage;
+  s.pm = pm;
   s.my_ID = ID;
   rob_ptr( s );
-  //  printf("DriverOld:init #3\n");
 }
 
 /**
@@ -109,6 +103,6 @@ situation DriverOld::FillSituation(rel_state* rel_state_vec_ptr)
   {
     result.nearby[k].who = 999;
   }
- 
-  return result; 
+
+  return result;
 } 

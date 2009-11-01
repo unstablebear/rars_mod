@@ -1014,7 +1014,7 @@ public:
 	void			CalcSpeedSection( int from, int len );
 	void			SetInitialSpeed( int from, int len );
 	void			PropagateBraking( int from, int len );
-	double			EstimateSpeed(double ps) const;
+	double			EstimateSpeed(double pm) const;
 
 private:
 	const D5Slices*	m_pSlices;
@@ -1200,7 +1200,7 @@ void	D5Path::PropagateBraking( int from, int len )
 	}
 }
 
-double	D5Path::EstimateSpeed(double ps) const
+double	D5Path::EstimateSpeed(double pm) const
 {
 	const double	cMaxA = MAX_ACCEL * CORN_MYU;
 	const double	cMass = (M + MAX_FUEL / g);
@@ -1240,7 +1240,7 @@ double	D5Path::EstimateSpeed(double ps) const
 				double	maxA = inner <= 0 ? 0 : sqrt(inner);
 
 				double	drag = DRAG_CON * spd * spd / cMass;
-				double	tanA = cos(alpha) * ps / (cMass * spd);
+				double	tanA = cos(alpha) * pm / (cMass * spd);
 
 				if( tanA > maxA )
 					tanA = maxA;
@@ -2917,7 +2917,7 @@ con_vec Dodger5( situation& s )
 			pOptPath->SetFactor( FindTrackFactor() );
 			pOptPath->Optimise();
 			pCarPaths = new D5CarPaths(s.my_ID, slices, *pOptPath);
-			speedEstimate = pCarPaths->GetPath(s.my_ID).EstimateSpeed(s->ps);
+			speedEstimate = pCarPaths->GetPath(s.my_ID).EstimateSpeed(s->pm);
 		}
 
 		cur_p = 0;
@@ -3027,7 +3027,7 @@ calcTargets:
 	{
 		D5Path	bestPath = pCarPaths->GetBestPath();
 		bestPath.CalcSpeed();
-		double	bestSpeedEstimate = bestPath.EstimateSpeed(s->ps);
+		double	bestSpeedEstimate = bestPath.EstimateSpeed(s->pm);
 
 		if( speedEstimate < bestSpeedEstimate )
 		{

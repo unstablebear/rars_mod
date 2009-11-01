@@ -30,13 +30,10 @@
  */
 int main(int argc, char* argv[])
 {
-
-  cout << "main #START" << endl;
-
   RaceManager Rars;
-
+ 
   Rars.ArgsInit( argc, argv );
-
+ 
   for( args.m_iCurrentTrack=0; args.m_iCurrentTrack<args.m_iNumTrack; args.m_iCurrentTrack++)
   {
     Rars.AllInit();

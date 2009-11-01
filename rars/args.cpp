@@ -54,9 +54,7 @@ Args::Args()
   m_iNumLap = 0;                 // Length of the race in laps, initially undefined
   m_iNumCar = 12;                // How many cars in the race
   m_iSurface = 1;                // default surface (1 hard)
-
-  log_interval = -1;
-
+  log_interval = -1;             // кол-во выполненных NormalRaceLoop между записями в лог
 }
 
 /**
@@ -99,7 +97,8 @@ void Args::GetArgs(int argc, char* argv[])
   char option;         // holds the option code
   char lastext[81];   // the last text argument processed
   lastext[0] = 0;
-  int car_param_idx = 0;
+
+  int car_param_idx = 0; // номер первого аргумента описывающего машину(id) в массиве аргументов
   Driver * temp_drv;
   int n, k;
 
@@ -110,22 +109,20 @@ void Args::GetArgs(int argc, char* argv[])
     ptr = argv[cur_arg];
     c = *ptr;
 
-    if(cur_arg == 1)
+    if(cur_arg == 1) // первый аргумент - интервал логгирования
+    {
+      log_interval = atoi(ptr);
+      if(log_interval == 0)
+	log_interval = -1;
+      continue; 
+    }
+    else
+      if(cur_arg == 2) // второй аргумент - путь к логу 
       {
-	log_interval = atoi(ptr);
-	//	printf("param1 = %i interval=%i\n", ptr, log_interval);
-	if(log_interval == 0)
-	  log_interval = -1;
+	if(log_interval > 0)
+	  log_file = ptr;
 	continue; 
       }
-    else
-      if(cur_arg == 2)
-	{
-	  if(log_interval > 0)
-	    log_file = ptr;
-	  //printf("parameters %i %s\n", log_interval, log_file);
-	  continue; 
-	}
 
     if(c == '-' || c == '/')         // is this an option request?
     {
@@ -142,6 +139,7 @@ void Args::GetArgs(int argc, char* argv[])
 	  car_param_idx = cur_arg;
           for( n=0; n<MAX_CARS; n++ )  
           {
+
             car_param_idx = ++car_param_idx;
             if (car_param_idx == argc)
             {
@@ -149,12 +147,7 @@ void Args::GetArgs(int argc, char* argv[])
             }
 	    
 	    char* car_id = argv[car_param_idx++];
-
-	    //printf("cars %i id = %s\n", n, car_id);
-
-            ptr = argv[car_param_idx++];
-
-	    //printf("cars %i name = %s\n", n, ptr);
+	    ptr = argv[car_param_idx++];
 
             if((i = find_name(ptr)) < 0)
             {
@@ -168,22 +161,18 @@ void Args::GetArgs(int argc, char* argv[])
               */
             }
 	    int idx = find_name(ptr);
-	    //printf("#1\n");
-	    double ps = atof(argv[car_param_idx]);
-	    //printf("#2\n");
-	    //printf("cars %i ps = %f s = %s\n", n, ps, argv[car_param_idx]);
+	    double pm = atof(argv[car_param_idx]);
 
 	    car_param_idx++;
 	    unsigned long init_damage = strtol(argv[car_param_idx], NULL, 10);
-	    //printf("cars %i init_damage = %ld\n", n, init_damage);
 
-		temp_drv = drivers[n];
-		drivers[n] = drivers[idx];
-		drivers[idx] = temp_drv;
+	    temp_drv = drivers[n];
+	    drivers[n] = drivers[idx];
+	    drivers[idx] = temp_drv;
 
-		drivers[n]->m_sId = car_id;
-		drivers[n]->m_iInitDamage = init_damage;
-		drivers[n]->m_iPs = ps;
+	    drivers[n]->id = car_id;
+	    drivers[n]->init_damage = init_damage;
+	    drivers[n]->pm = pm;
 
           }
 

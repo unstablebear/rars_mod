@@ -72,32 +72,26 @@ RaceManager::~RaceManager()
  */
 void RaceManager::ArgsInit( int argc, char* argv[] )
 {
-  //printf("ArgsInit #START\n");
-
   // Set the track, car_count, lap_count, and various options:
   args.GetArgs(argc, argv);
   
-  //printf("ArgsInit #1\n");
   // Initialize the global currentTrack
   currentTrack = new Track(args.m_aTracks[args.m_iCurrentTrack]);
-  //printf("ArgsInit #2\n");
+
   // Init deprecated variables
   deprecated_init_globals();
-  //printf("ArgsInit #3\n");
+
   // For compatibility reason with the old get_names
   int i=0;
   while( drivers[i]!=NULL )
   {
-    //printf("ArgsInit #4 id = %i ps = %f\n", drivers[i]->m_iInitDamage, drivers[i]->m_iPs);
     drivers[i]->init(i);
-//printf("ArgsInit #5 !!  %i \n", i);
     i++;
   }
 
-    //printf("ArgsInit #6\n");
   // Initialize the random variable generator:
   randomizer();
-    //printf("ArgsInit #7\n");
+  
   // Write initial race data to report file:
   m_oReport.WriteBegin();
 
@@ -105,7 +99,6 @@ void RaceManager::ArgsInit( int argc, char* argv[] )
 
   logFile << "<race>" << endl << flush;
 
-  //printf("ArgsInit #8\n");
 }
 
 /**
@@ -145,11 +138,10 @@ void RaceManager::AllInit()
   while( drivers[i]!=NULL )
   {
     race_data.cars[i] = new Car(i);
-    //printf("CarsInit id = %i ps = %f\n", drivers[i]->m_iInitDamage, drivers[i]->m_iPs);
-    race_data.cars[i]->s.ps = drivers[i]->m_iPs;
-    race_data.cars[i]->s.damage = drivers[i]->m_iInitDamage;
-    race_data.cars[i]->damage = drivers[i]->m_iInitDamage;
-    race_data.cars[i]->Damage = drivers[i]->m_iInitDamage;
+    race_data.cars[i]->s.pm = drivers[i]->pm;
+    race_data.cars[i]->s.damage = drivers[i]->init_damage;
+    race_data.cars[i]->damage = drivers[i]->init_damage;
+    race_data.cars[i]->Damage = drivers[i]->init_damage;
     i++;
   }
 }
@@ -165,9 +157,6 @@ void RaceManager::RaceInit(long rl)
   int i;
   long j;
   
-  //  printf("Race init #START\n");
-  //printf("Race init #1 id = %ld\n", race_data.cars[0]->damage);
-
   race_data.m_iNumCarFinished = 0;  // incremented by each car that finishes the race
   race_data.m_iNumCarOut = 0;   // incremented by each car that crashes
   race_data.m_fElapsedTime = 0.0;
@@ -178,22 +167,17 @@ void RaceManager::RaceInit(long rl)
   if(args.m_bPractice)
   {
     CommonInit( PRACTICE, rl );
-    //printf("Race init #2 id = %ld\n", race_data.cars[0]->damage);
   }
   else
   {
     CommonInit( RACING, rl );
-    //printf("Race init #3 id = %ld\n", race_data.cars[0]->damage);
   }
 
   // Open the data files for reading or writing movie (if necessary):
   if( args.m_iMovieMode!=MOVIE_NORMAL )
   {
     m_oMovie = new Movie( args.m_sMovieName );
-    //printf("Race init #4 id = %ld\n", race_data.cars[0]->damage);
   }
-
-
   // Initialize movie
   // + write or read race_data.m_aStartPos[] array
   // + write or read stage of racing
@@ -202,14 +186,12 @@ void RaceManager::RaceInit(long rl)
     m_oMovie->ReplayInit( &args.m_iNumCar, drivers);
     m_oMovie->ReplayRacers( args.m_iNumCar, race_data.m_aStartPos );
     m_oMovie->ReplayStage( &race_data.stage );
-  //printf("Race init #5 id = %ld\n", race_data.cars[0]->damage);
   }
   else if( args.m_iMovieMode==MOVIE_RECORD )
   {
     m_oMovie->RecordInit( args.m_iNumCar, drivers);
     m_oMovie->RecordRacers( args.m_iNumCar, race_data.m_aStartPos );
     m_oMovie->RecordStage( race_data.stage );
-    //printf("Race init #6 id = %ld\n", race_data.cars[0]->damage);
   }
 
   if( race_data.stage==RACING )
@@ -230,12 +212,9 @@ void RaceManager::RaceInit(long rl)
       }
     }
   }
-  //printf("Race init #7 id = %ld\n", race_data.cars[0]->damage);    
+    
   // puts cars on starting grid, initialize their variables:
   ArrangeCars(); 
-
-  //printf("Race init #END id = %ld\n", race_data.cars[0]->damage);
-
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -249,14 +228,10 @@ void RaceManager::RaceInit(long rl)
  */
 int RaceManager::RaceLoop()
 {
-
-  //printf("Race loop #START id = %ld \n", race_data.cars[0]->damage);
-
   if( m_oInstantReplay.m_iMode==INSTANT_RECORD || m_oInstantReplay.m_iMode==INSTANT_INIT || !draw.m_bDisplay )
   {
     int res = NormalRaceLoop();
     m_oInstantReplay.Record();
-    //    printf("Race loop #END1 id = %ld \n", race_data.cars[0]->s.damage);
     return res;
   }
   else
@@ -265,7 +240,6 @@ int RaceManager::RaceLoop()
     // Exist only in Gui mode
     Keyboard();
     draw.RefreshFinishLine();
-    //    printf("Race loop #END2 id = %ld \n", race_data.cars[0]->s.damage);
     return 1; // always continue
   }
 
@@ -281,52 +255,36 @@ int RaceManager::NormalRaceLoop()
   rel_state rel_state_vec[NEARBY_CARS];// contains 5 relative state vectors
   int tick_count = 0;                  // for dynamic simulation-speed variation
 
-  //printf("Race normal loop #START id = %ld \n", race_data.cars[0]->s.ps);
-
   //////// observe & control:
   for(i=0; i<args.m_iNumCar; i++)           // for each car:
   {
     race_data.cars[i]->Observe();      // compute its local situation
   }
-
-  //printf("Race normal loop #END1 id = %ld \n", race_data.cars[0]->s.damage);
-
   if( args.m_iMovieMode!=MOVIE_PLAYBACK ) // not possible if in replay mode
   {
     for(i=0; i<args.m_iNumCar; i++)         // for each car:
     { 
       race_data.cars[i]->CheckNearby(rel_state_vec); // report nearby cars
-      //printf("Race normal loop #END2 id = %ld \n", race_data.cars[0]->s.damage);
-      //printf("Race normal loop #END1 id = %f \n", race_data.cars[0]->x);
+
       if( !race_data.cars[i]->out )
       {
         RobotTimer.startTimer();
         race_data.cars[i]->Control();              // compute a control vector
         race_data.cars[i]->RobotTime += RobotTimer.stopTimer();
-	//printf("Race normal loop #END3 id = %f \n", race_data.cars[0]->x);
       }
       else
         race_data.cars[i]->Control();              // compute a control vector
-      //printf("Race normal loop #END4 id = %f \n", race_data.cars[0]->x);
     }
   }
-
-  //printf("Race normal loop #END5 id = %f \n", race_data.cars[0]->x);
 
   //////// move_car, check collisions:
   for(i=0; i<args.m_iNumCar; i++)             // for each car:
   {
     if( args.m_iMovieMode==MOVIE_PLAYBACK ) // imitate move_car()
-      {
       race_data.cars[i]->ReplayMovie( m_oMovie );
-  //printf("Race normal loop #END6 id = %f \n", race_data.cars[0]->x);
-      }
     else
       race_data.cars[i]->MoveCar();      // update state of car
-    //printf("Race normal loop #END7 id = %f \n", race_data.cars[0]->x);
   } 
-
-
   if( args.m_iMovieMode!=MOVIE_PLAYBACK )
   {
     for(i=0; i<args.m_iNumCar; i++)           // for each car:
@@ -337,11 +295,8 @@ int RaceManager::NormalRaceLoop()
     }
   }
 
-  //printf("Race normal loop #END8 id = %f \n", race_data.cars[0]->x);
-
-  loop_cnt++;
   bool is_log_needed = false;
-  if((loop_cnt % args.log_interval) == 0)
+  if((loop_cnt++ % args.log_interval) == 0)
     {
       is_log_needed = true;
       step_cnt++;
@@ -354,13 +309,13 @@ int RaceManager::NormalRaceLoop()
 	{
 	  //	  race_data.cars[i]->CheckCollisions();
 
-	  logFile << "\t\t<car id=\"" << race_data.cars[i]->driver->m_sId << "\" p=\"" << race_data.cars[i]->s.position + 1 << "\" a=\"" 
+	  logFile << "\t\t<car id=\"" << race_data.cars[i]->driver->id << "\" p=\"" << race_data.cars[i]->s.position + 1 << "\" a=\"" 
 		  << race_data.cars[i]->ang << "\" x=\"" << race_data.cars[i]->x << "\" y=\""
 		  << race_data.cars[i]->y << "\" d=\"" << race_data.cars[i]->damage << "\" ";
 	  
-	  if(race_data.cars[i]->is_collision_happens)
+	  if(race_data.cars[i]->is_collision_happened)
 	  {
-	    race_data.cars[i]->is_collision_happens = false;
+	    race_data.cars[i]->is_collision_happened = false;
 	    logFile << "collision=\"true\" ";
 	  }
 	  if(race_data.cars[i]->done == 1)
@@ -371,8 +326,6 @@ int RaceManager::NormalRaceLoop()
 	}
       logFile << "\t</step>" << endl << flush;
     }
-
-  //printf("Race normal loop #10 id = %ld \n", race_data.cars[0]->s.damage);
 
   if(draw.m_bDisplay && draw.m_iFastDisplay > -1)
   {
@@ -399,8 +352,6 @@ int RaceManager::NormalRaceLoop()
       m_fPanelLastTime = race_data.m_fElapsedTime;     // reset counter
     }
   }
-
-  //printf("Race normal loop #END1 id = %ld \n", race_data.cars[0]->s.damage);
 
   if( Keyboard() )
   {
@@ -436,7 +387,6 @@ int RaceManager::NormalRaceLoop()
       tick_count = 0;
     }
   }
-
 
   return(1);                           // repeats race loop as long as (1) is returned
 }
@@ -476,7 +426,6 @@ void RaceManager::RaceClose(long rl)
   {
     delete m_oMovie;
   }
-
 }
 
 /**
@@ -487,12 +436,11 @@ void RaceManager::AllClose()
 {
   m_oReport.WriteFinal();
 
-  if(args.log_interval > 0)
-    {
-      logFile << "</race>" << flush;
-      logFile.close();
-    }
-
+  if(args.log_interval > 0) // закрываем лог при необходимости
+  {
+    logFile << "</race>" << flush;
+    logFile.close();
+  }
   // clean up, end graphics, back to normal
   int i=0;
   while( drivers[i]!=NULL )

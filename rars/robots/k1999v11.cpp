@@ -282,7 +282,7 @@ class CK1999Path // path
   double GetCurvature(int prev, double x, double y, int next) const;
   void AnalyzePath(int Step = 1);
   void AnticipateBraking(int Step = 1);
-  double EstimateSpeed(int Step = 1, double ps);
+  double EstimateSpeed(int Step = 1, double pm);
   void AdjustRadius(int prev,
                     int i,
                     int next,
@@ -380,7 +380,7 @@ static double GetControl(double At,
  {
   if (++Loops >= 40)
   {
-    OUTPUT("Control problem");
+   OUTPUT("Control problem");
    return At0;
   }
 
@@ -395,7 +395,7 @@ static double GetControl(double At,
    double x = cos(result.alpha) * CosTheta + sin(result.alpha) * SinTheta;
    double P = A * mass * result.vc * x;
    
-   if (At < 0 || (!fAdjustP && P < ps) || (fAdjustP && P < ps && P > 0.999 * ps))
+   if (At < 0 || (!fAdjustP && P < pm) || (fAdjustP && P < pm && P > 0.999 * pm))
     break;
 
    if (!fAdjustP)
@@ -406,7 +406,7 @@ static double GetControl(double At,
    }
    else
    {
-    if (P >= ps)
+    if (P >= pm)
     {
      At1 = At;
      P1 = P;
@@ -418,7 +418,7 @@ static double GetControl(double At,
     }
    }
 
-   At = At0 + (0.9995 * ps - P0) * (At1 - At0) / (P1 - P0);
+   At = At0 + (0.9995 * pm - P0) * (At1 - At0) / (P1 - P0);
   }
   else
   {
@@ -648,7 +648,7 @@ void CK1999Path::AnticipateBraking(int Step)
 /////////////////////////////////////////////////////////////////////////////
 // Estimate average lap speed
 /////////////////////////////////////////////////////////////////////////////
-double CK1999Path::EstimateSpeed(int Step, double ps)
+double CK1999Path::EstimateSpeed(int Step, double pm)
 {
  double TotalTime;
  const int last = ((Divs - Step) / Step) * Step;
@@ -665,7 +665,7 @@ double CK1999Path::EstimateSpeed(int Step, double ps)
 
    double LatA = Speed * Speed * (tCurvature[prev] + tCurvature[i]) / 2;
 #if 0
-   double TanA = ps / (M * Speed);
+   double TanA = pm / (M * Speed);
 #else
    double TanA2 = TireAccel * TireAccel - LatA * LatA;
    double TanA = (TanA2 > 0 ? sqrt(TanA2) : 0);
@@ -1065,7 +1065,7 @@ void CK1999Path::Optimize()
 /////////////////////////////////////////////////////////////////////////////
 // Initialize path data
 /////////////////////////////////////////////////////////////////////////////
-static void Initialize(double ps)
+static void Initialize(double pm)
 {
  SideDistExt = 4.0;
  SideDistInt = 0.5;
@@ -1074,9 +1074,9 @@ static void Initialize(double ps)
  SplitTrack();
  pathK1999.Reset();
  OUTPUT(Track.sName);
- pathK1999.ps = ps;
- pathEmergency.ps = ps;
- pathK2001.ps = ps;
+ pathK1999.pm = pm;
+ pathEmergency.pm = pm;
+ pathK2001.pm = pm;
  //
  // Offset distance ??? first segment must be a straight
  //
@@ -1233,8 +1233,7 @@ class KDriver
   double PrevFuel;
   CInterpolationContext ic;
   CInterpolationContext icNext;
-
-  double ps;
+  double pm;
 
   KDriver(const char * sNameInit, const CK1999Path &pathInit) :
 #ifdef LOG_DATA
@@ -1292,7 +1291,7 @@ con_vec KDriver::Drive(situation &s)
   static int TrackNumber = -1;
   if (Track::currentTrackFileName != TrackNumber && get_track_description().NSEG > 0)
   {
-   Initialize(s.ps);
+   Initialize(s.pm);
    TrackNumber = Track::currentTrackFileName;
   }
  }
@@ -1496,7 +1495,7 @@ con_vec KDriver::Drive(situation &s)
  // Compute alpha and vc from acceleration values
  //
  con_vec result;
- At = GetControl(At, An, s.v, mass, result, s->ps);
+ At = GetControl(At, An, s.v, mass, result, s->pm);
 
  //
  // Log data to file

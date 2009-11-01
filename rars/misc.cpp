@@ -301,6 +301,15 @@ int find_name(char* name)
   return -1;
 }
 
+/**
+ * Find this name in the drivers[] array. Search starts from idx element.
+ *
+ * @param name    (in) name of a driver
+ * @param idx     (in) index of start element
+ * @return        index in drivers[]
+ *                -1 is returned if name is not found
+ *                else returned value will be 0 - MAX_CARS-1
+ */
 int find_name_from_idx(char* name, int idx)
 {
   int i=idx, cmp;
@@ -316,7 +325,6 @@ int find_name_from_idx(char* name, int idx)
   }
   return -1;
 }
-
 
 /**
  * Call repeatedly to change direction by 180 degrees:

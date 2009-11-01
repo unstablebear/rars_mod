@@ -201,7 +201,7 @@ struct situation             // a car's local situation as seen by the driver
   int side_vision;           // allow cars alongside in s.nearby data
   rel_state* nearby;         // relative states of three cars in front of you 
   void* data_ptr;            // pointer to driver's scratchpad RAM area 
-  double ps;
+  double pm;
 };
 
 /**
@@ -243,9 +243,9 @@ public:
   const char * getModel3D();
   const char * getName();
 
-  char* m_sId;
-  unsigned long m_iInitDamage;
-  double m_iPs;
+  char* id;
+  unsigned long init_damage;
+  double pm;
 
   void setName( char * _name );
   int getNoseColor();
@@ -402,7 +402,8 @@ public:
   double Q_bestlap;                    // best lap time in qualifying  
   double Q_avgspeed;                   // average speed of qual attempt
   double prex2, prey2, prang2;
-  bool is_collision_happens;
+  bool is_collision_happened;          // флаг для логирующего кода, говорящий, о том произошло 
+                                       // ли столкновение с момента предыдущей операции логгирования
 
   Car(int);                            // constructor
   ~Car();                              // destructor
