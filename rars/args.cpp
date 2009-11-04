@@ -173,11 +173,11 @@ void Args::GetArgs(int argc, char* argv[])
 	      drivers[idx] = temp_drv;
 	    }
 	    else
-	    {
-	      drivers[n]->id = car_id;
-	      drivers[n]->init_damage = init_damage;
-	      drivers[n]->pm = pm;
-	    }
+	      drivers[n] = getDriver(ptr);
+
+	    drivers[n]->id = car_id;
+	    drivers[n]->init_damage = init_damage;
+	    drivers[n]->pm = pm;
           }
 
 	  cur_arg = car_param_idx;
