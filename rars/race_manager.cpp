@@ -349,7 +349,8 @@ int RaceManager::NormalRaceLoop()
 	    logFile << "finish=\"true\" ";
 	    printf("#5\n");
 	    char finish_time_str[20];
-	    logFile << sprintf(finish_time_str, "finish_time=\"%ld\"", *(finish_times_ptr + i));
+	    sprintf(finish_time_str, "finish_time=\"%ld\"", *(finish_times_ptr + i));
+	    logFile << finish_time_str;
 	    printf("#6\n");
 	  }
 	  logFile << "/>\n";
