@@ -24,6 +24,7 @@
 #include "movie.h"
 #include "os.h"
 #include "draw.h"
+#include <time.h>
 
 //--------------------------------------------------------------------------
 //                           G L O B A L S
@@ -36,6 +37,10 @@ RaceData race_data;
 ofstream logFile;
 int loop_cnt = 0;
 int step_cnt = 0;
+
+time_t start_time;
+double* finish_times_ptr;
+
 //--------------------------------------------------------------------------
 //                          F U N C T I O N S
 //--------------------------------------------------------------------------
@@ -98,6 +103,15 @@ void RaceManager::ArgsInit( int argc, char* argv[] )
   logFile.open(args.log_file);
 
   logFile << "<race>" << endl << flush;
+
+  start_time = time (NULL);
+
+  double finish_times[i];
+  for(int l = 0; l < i; l++) {
+    finish_times[l] = 0;
+  }
+
+  finish_times_ptr = finish_times;
 
 }
 
@@ -284,6 +298,18 @@ int RaceManager::NormalRaceLoop()
       race_data.cars[i]->ReplayMovie( m_oMovie );
     else
       race_data.cars[i]->MoveCar();      // update state of car
+    
+    //    printf("#1");
+    if(race_data.cars[i]->done == 1) {
+      if (*(finish_times_ptr + i) == 0)
+      {
+	printf("#2\n");
+	time_t finish_time = time( NULL );
+	printf("#3\n");
+	*(finish_times_ptr + i) = finish_time - start_time;
+	printf("#4\n");      
+      }
+    }
   } 
   if( args.m_iMovieMode!=MOVIE_PLAYBACK )
   {
@@ -295,6 +321,7 @@ int RaceManager::NormalRaceLoop()
     }
   }
 
+  
   bool is_log_needed = false;
   if((loop_cnt++ % args.log_interval) == 0)
     {
@@ -318,9 +345,12 @@ int RaceManager::NormalRaceLoop()
 	    race_data.cars[i]->is_collision_happened = false;
 	    logFile << "collision=\"true\" ";
 	  }
-	  if(race_data.cars[i]->done == 1)
+	  if(race_data.cars[i]->done == 1) {
 	    logFile << "finish=\"true\" ";
-
+	    printf("#5\n");
+	    logFile << "finish_time=\"" << *(finish_times_ptr + i) << "\" ";
+	    printf("#6\n");
+	  }
 	  logFile << "/>\n";
 
 	}
