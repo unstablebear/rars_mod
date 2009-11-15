@@ -1,0 +1,19 @@
+roman@AsRock:~/rars$ sudo apt-get install libqt3-headers libqt3-compat-headers libqt3-mt libqt3-mt-dev
+
+roman@AsRock:~/rars$ sudo apt-get remove gcc-4.2
+roman@AsRock:~/rars$ sudo apt-get install gcc-3.3
+roman@AsRock:~/rars$ sudo ln -s /usr/bin/gcc-3.3 /usr/bin/gcc
+
+roman@AsRock:~/rars$ sudo apt-get remove cpp-4.2 
+roman@AsRock:~/rars$ sudo apt-get install cpp-3.3
+roman@AsRock:~/rars$ sudo ln -s /usr/bin/g++-3.3 /usr/bin/g++
+
+roman@AsRock:~/rars$ sudo apt-get install kde-devel
+
+roman@AsRock:~/rars$ sudo chown -R roman:roman .
+
+roman@AsRock:~/rars$ export QTDIR=/usr/lib/qt3
+roman@AsRock:~/rars$ export QTINC=/usr/include/qt3
+
+roman@AsRock:~/rars$ ./configure 
+roman@AsRock:~/rars$ make
