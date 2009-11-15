@@ -24,6 +24,7 @@
 #include "movie.h"
 #include "os.h"
 #include "draw.h"
+#include <time.h>
 
 //--------------------------------------------------------------------------
 //                           G L O B A L S
@@ -36,6 +37,10 @@ RaceData race_data;
 ofstream logFile;
 int loop_cnt = 0;
 int step_cnt = 0;
+
+time_t start_time;
+double finish_times[1000];
+
 //--------------------------------------------------------------------------
 //                          F U N C T I O N S
 //--------------------------------------------------------------------------
@@ -98,6 +103,11 @@ void RaceManager::ArgsInit( int argc, char* argv[] )
   logFile.open(args.log_file);
 
   logFile << "<race>" << endl << flush;
+
+  start_time = time (NULL);
+  for(int l = 0; l < i; l++) {
+    finish_times[l] = 0;
+  }
 
 }
 
@@ -284,6 +294,10 @@ int RaceManager::NormalRaceLoop()
       race_data.cars[i]->ReplayMovie( m_oMovie );
     else
       race_data.cars[i]->MoveCar();      // update state of car
+    
+    if(race_data.cars[i]->done == 1 && finish_times[i] == 0) {
+      finish_times[i] = race_data.cars[i]->s.time_count;
+    }
   } 
   if( args.m_iMovieMode!=MOVIE_PLAYBACK )
   {
@@ -295,6 +309,7 @@ int RaceManager::NormalRaceLoop()
     }
   }
 
+  
   bool is_log_needed = false;
   if((loop_cnt++ % args.log_interval) == 0)
     {
@@ -307,7 +322,6 @@ int RaceManager::NormalRaceLoop()
     {
       for(i=0; i<args.m_iNumCar; i++)             // for each car:
 	{
-	  //	  race_data.cars[i]->CheckCollisions();
 
 	  logFile << "\t\t<car id=\"" << race_data.cars[i]->driver->id << "\" p=\"" << race_data.cars[i]->s.position + 1 << "\" a=\"" 
 		  << race_data.cars[i]->ang << "\" x=\"" << race_data.cars[i]->x << "\" y=\""
@@ -318,9 +332,12 @@ int RaceManager::NormalRaceLoop()
 	    race_data.cars[i]->is_collision_happened = false;
 	    logFile << "collision=\"true\" ";
 	  }
-	  if(race_data.cars[i]->done == 1)
+	  if(race_data.cars[i]->done == 1) {
 	    logFile << "finish=\"true\" ";
-
+	    char finish_time_str[20];
+	    sprintf(finish_time_str, "finishTime=\"%.2f\"", finish_times[i]);
+	    logFile << finish_time_str;
+	  }
 	  logFile << "/>\n";
 
 	}
