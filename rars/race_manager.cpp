@@ -348,7 +348,8 @@ int RaceManager::NormalRaceLoop()
 	  if(race_data.cars[i]->done == 1) {
 	    logFile << "finish=\"true\" ";
 	    printf("#5\n");
-	    logFile << "finish_time=\"" << *(finish_times_ptr + i) << "\" ";
+	    char finish_time_str[20];
+	    logFile << sprintf(finish_time_str, "finish_time=\"%ld\"", *(finish_times_ptr + i));
 	    printf("#6\n");
 	  }
 	  logFile << "/>\n";
