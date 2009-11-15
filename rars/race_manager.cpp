@@ -306,7 +306,7 @@ int RaceManager::NormalRaceLoop()
 	printf("#2\n");
 	time_t finish_time = time( NULL );
 	printf("#3\n");
-	*(finish_times_ptr + i) = finish_time - start_time;
+	*(finish_times_ptr + i) = difftime(start_time, finish_time);
 	printf("#4\n");      
       }
     }
