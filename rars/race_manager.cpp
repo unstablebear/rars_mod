@@ -39,7 +39,7 @@ int loop_cnt = 0;
 int step_cnt = 0;
 
 time_t start_time;
-double* finish_times_ptr;
+double finish_times[1000];
 
 //--------------------------------------------------------------------------
 //                          F U N C T I O N S
@@ -105,13 +105,9 @@ void RaceManager::ArgsInit( int argc, char* argv[] )
   logFile << "<race>" << endl << flush;
 
   start_time = time (NULL);
-
-  double finish_times[i];
   for(int l = 0; l < i; l++) {
     finish_times[l] = 0;
   }
-
-  finish_times_ptr = finish_times;
 
 }
 
@@ -299,16 +295,8 @@ int RaceManager::NormalRaceLoop()
     else
       race_data.cars[i]->MoveCar();      // update state of car
     
-    //    printf("#1");
-    if(race_data.cars[i]->done == 1) {
-      if (*(finish_times_ptr + i) == 0)
-      {
-	printf("#2\n");
-	time_t finish_time = time( NULL );
-	printf("#3\n");
-	*(finish_times_ptr + i) = difftime(start_time, finish_time);
-	printf("#4\n");      
-      }
+    if(race_data.cars[i]->done == 1 && finish_times[i] == 0) {
+      finish_times[i] = race_data.cars[i]->s.time_count;
     }
   } 
   if( args.m_iMovieMode!=MOVIE_PLAYBACK )
@@ -334,7 +322,6 @@ int RaceManager::NormalRaceLoop()
     {
       for(i=0; i<args.m_iNumCar; i++)             // for each car:
 	{
-	  //	  race_data.cars[i]->CheckCollisions();
 
 	  logFile << "\t\t<car id=\"" << race_data.cars[i]->driver->id << "\" p=\"" << race_data.cars[i]->s.position + 1 << "\" a=\"" 
 		  << race_data.cars[i]->ang << "\" x=\"" << race_data.cars[i]->x << "\" y=\""
@@ -347,11 +334,9 @@ int RaceManager::NormalRaceLoop()
 	  }
 	  if(race_data.cars[i]->done == 1) {
 	    logFile << "finish=\"true\" ";
-	    printf("#5\n");
 	    char finish_time_str[20];
-	    sprintf(finish_time_str, "finish_time=\"%.2f\"", *(finish_times_ptr + i));
+	    sprintf(finish_time_str, "finishTime=\"%.2f\"", finish_times[i]);
 	    logFile << finish_time_str;
-	    printf("#6\n");
 	  }
 	  logFile << "/>\n";
 
