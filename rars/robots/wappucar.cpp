@@ -33,9 +33,6 @@
 
 extern const double CARWID;
 
-static int NSEG;              // number of segments
-static segment *rgtwall;     // track defining arrays - see TRACK.CPP
-static segment *lftwall;
 //extern char trackfile[];
 extern int no_display;
 
@@ -54,44 +51,99 @@ const double consts[8][10]={{31,25,5.5 , .15,.25,.15,.7,.2, 50, 5},// zandvort
 			    {31,20,5.75, .15,.25,.15,.7,.2 ,65, 0},// fourmile
 			    {31,20,5.75, .15,.25,.15,.7,.2 ,65, 0}};// 4mile
 
-// parameters :
-static double a=31;      // acceleration on straight
-static double kurv_a=25; // acceleration on curve
-static double v_kerr=5.6;// speed rate
-static double accslad=.15,decslad=.25;// max acceleration and braking slide percent
-static double curvslad=.15; // max slide percent on curve
-static double ajolinjakerr=.7;// braking rate when not on driving line
-static double maxkulma=.2;    // max angle to drive to the line
-static double vara=35;        // space to outer curve
-static double sisavara=7;    // space to inner curve
-
-// v_kerr, vara and sisavara are the most important parameters
-
-static double vc=1000,alpha=0;
-static int init_flag=true;
-
-con_vec result;
-double r1,r2;              // curves inner and outer radian ( with space )
-double nex_r1,nex_r2;      // and the same for next curve
-double r3,nex_r3;          // driving lines radian
-double nex_yli;            // how far the driving line is from end of straight
-double v0,x;               // speed on next curve, x=distance to curve
-static int ulkona=false;   // if out of road during last round
-static int tracknum=0;     // current tracks number
-static int n;              // current segments number
-static int ohitus=0;       // <>0 when passing if <0 passing from right side
-static int firstround=true;// true when called first time
-
-static char trackname[16];
-
 struct ratataul {
   int tyyppi;    //curve type
   double ajor;   //driving lines rad
   double r;      // curves rad
   double pituus; //length
 };
-ratataul *curves;
 
+
+class WappuCar : public Driver
+{
+public:
+
+  int NSEG;              // number of segments
+  segment *rgtwall;     // track defining arrays - see TRACK.CPP
+  segment *lftwall;
+
+  // parameters :
+  double a;      // acceleration on straight
+  double kurv_a; // acceleration on curve
+  double v_kerr;// speed rate
+  double accslad,decslad;// max acceleration and braking slide percent
+  double curvslad; // max slide percent on curve
+  double ajolinjakerr;// braking rate when not on driving line
+  double maxkulma;    // max angle to drive to the line
+  double vara;        // space to outer curve
+  double sisavara;    // space to inner curve
+
+  // v_kerr, vara and sisavara are the most important parameters
+
+  double vc,alpha;
+  int init_flag;
+
+  con_vec result;
+  double r1,r2;              // curves inner and outer radian ( with space )
+  double nex_r1,nex_r2;      // and the same for next curve
+  double r3,nex_r3;          // driving lines radian
+  double nex_yli;            // how far the driving line is from end of straight
+  double v0,x;               // speed on next curve, x=distance to curve
+  int ulkona;   // if out of road during last round
+  int tracknum;     // current tracks number
+  int n;              // current segments number
+  int ohitus;       // <>0 when passing if <0 passing from right side
+  int firstround;// true when called first time
+  char trackname[16];
+  ratataul *curves;
+
+  WappuCar()
+  {
+    a=31;      // acceleration on straight
+    kurv_a=25; // acceleration on curve
+    v_kerr=5.6;// speed rate
+    accslad=.15;
+    decslad=.25;// max acceleration and braking slide percent
+    curvslad=.15; // max slide percent on curve
+    ajolinjakerr=.7;// braking rate when not on driving line
+    maxkulma=.2;    // max angle to drive to the line
+    vara=35;        // space to outer curve
+    sisavara=7;    // space to inner curve
+
+    vc=1000;
+    alpha=0;
+    tracknum = 0;
+    ohitus = 0;
+
+    firstround = true;
+    ulkona = false;
+    init_flag = true;
+
+    m_iNoseColor = oWHITE;
+    m_iTailColor = oWHITE;
+    m_sBitmapName2D = "car_white_white";
+    m_sModel3D = "futura";
+    m_sName = "WappuCar";
+  }
+
+  double wc_driving_lines_rad(int tyyppi,double r,double omega);
+  void wc_track_init(void);
+  double wc_abs(double x);
+  double wc_sqr(double x);
+  double wc_minimum(double a,double b);
+  double wc_laske_yli(int tyyppi,double r1,double r2,double r3,double omega);
+  void wc_laskeperusjutut(situation s);
+  void wc_calc_driving_line(situation s);
+  void wc_speed(situation s);
+  double wc_anna_fii(int tyyppi,double pit,double loppuun);
+  void wc_passing(situation s);
+  void wc_sladiraj(double nykyv);
+  void wc_alpha(situation s);
+  double wc_anna_theta(situation s);
+  
+  con_vec drive(situation& s);
+
+};
 
 /*void piirramit(double v){
 #define xx 250
@@ -106,7 +158,7 @@ static int mx=xx,my=yy;
   line(xx,yy,mx,my);
 } */
 
-double wc_driving_lines_rad(int tyyppi,double r,double omega){
+double WappuCar::wc_driving_lines_rad(int tyyppi,double r,double omega){
 double r1,r2=0;
 
   // outer and inner curve with spaces
@@ -131,7 +183,7 @@ double r1,r2=0;
   }
 }
 
-void wc_track_init(void){
+void WappuCar::wc_track_init(void){
 int i=0;
 
 NSEG = get_track_description().NSEG;
@@ -213,21 +265,21 @@ rgtwall =  get_track_description().rgtwall;
 }
 
 
-double wc_abs(double x){
+double WappuCar::wc_abs(double x){
   if (x<0) return -x; else return x;
 }
 
-double wc_sqr(double x){
+double WappuCar::wc_sqr(double x){
   return x*x;
 }
 
-double wc_minimum(double a,double b){
+double WappuCar::wc_minimum(double a,double b){
   if (a<b) return a;
   else return b;
 }
 
 
-double wc_laske_yli(int tyyppi,double r1,double r2,double r3,double omega){
+double WappuCar::wc_laske_yli(int tyyppi,double r1,double r2,double r3,double omega){
 // this routine calculates how far on the straight the driving line begins
   double d;
   switch(tyyppi){
@@ -248,7 +300,7 @@ double wc_laske_yli(int tyyppi,double r1,double r2,double r3,double omega){
 }
 
 
-void wc_laskeperusjutut(situation s){
+void WappuCar::wc_laskeperusjutut(situation s){
 
   r1=r2=nex_r1=nex_r2=0;  // nollataan s„teet
 
@@ -273,7 +325,7 @@ void wc_laskeperusjutut(situation s){
 }
 
 
-void wc_calc_driving_line(situation s){  // lasketaan ajolinjan s„de ja ylitys, jos mahd.
+void WappuCar::wc_calc_driving_line(situation s){  // lasketaan ajolinjan s„de ja ylitys, jos mahd.
   if (s.cur_rad==0) r3=0;
   else r3=curves[n].ajor;
 
@@ -286,7 +338,7 @@ void wc_calc_driving_line(situation s){  // lasketaan ajolinjan s„de ja ylitys, 
 }
 
 
-void wc_speed(situation s){
+void WappuCar::wc_speed(situation s){
 
   vc=1000;
   // nopeus suoralla, ja mutkaan tullessa
@@ -336,7 +388,7 @@ void wc_speed(situation s){
   }
 
 }
-double wc_anna_fii(int tyyppi,double pit,double loppuun){
+double WappuCar::wc_anna_fii(int tyyppi,double pit,double loppuun){
 double fii=0;
   // fii on "autosta kurvin keskipisteeseen ja kurvin keskipisteest„
   // ajos„teen keskipisteeseen" v„linen kulma
@@ -361,7 +413,7 @@ double fii=0;
   return fii;
 }
 
-double wc_anna_theta(situation s){
+double WappuCar::wc_anna_theta(situation s){
   // theta on kurvin suunnan ja ajoympyr„n tangentin v„linen kulma
 
   double A,B,C,D,E;
@@ -502,7 +554,7 @@ double wc_anna_theta(situation s){
 }
 
 
-void wc_alpha(situation s){  // K„„nn”ksenlaskufunktio
+void WappuCar::wc_alpha(situation s){  // K„„nn”ksenlaskufunktio
 double v_kulma,tan_kulma;
 double et=0,lev;
 double suuntero=0.0;
@@ -542,7 +594,7 @@ double suuntero=0.0;
   alpha=suuntero;
 }
 
-void wc_sladiraj(double nykyv){
+void WappuCar::wc_sladiraj(double nykyv){
   if (r3==0){        // Rajoitetaan sladia suoralla
     if (vc/nykyv>(1+accslad)){
       vc=nykyv*(1+accslad);
@@ -561,7 +613,7 @@ void wc_sladiraj(double nykyv){
   }
 }
 
-void wc_passing(situation s){
+void WappuCar::wc_passing(situation s){
 int i,vaisto_suunta=-9999;
 double v,d;
 double d_alfa,v_alfa;
@@ -632,7 +684,7 @@ double x,y,vx,vy;
 
 
 
-con_vec WappuCar(situation& s)// * * * * * *  PŽŽOHJELMA * * *  * *  * * * *  * *
+con_vec WappuCar::drive(situation& s)// * * * * * *  PŽŽOHJELMA * * *  * *  * * * *  * *
 {
   if (init_flag){                 // kerrotaan robotin nimi,
     my_name_is(name);       // vain 1. kierroksella
@@ -641,8 +693,8 @@ con_vec WappuCar(situation& s)// * * * * * *  PŽŽOHJELMA * * *  * *  * * * *  * 
     init_flag=false;
     return result;
   }
-  if (s.starting) result.fuel_amount = MAX_FUEL;
-  if (s.starting) wc_track_init(); // lasketaan radan ominaisuuksia
+  if (!init_flag) result.fuel_amount = MAX_FUEL;
+  if (!init_flag) wc_track_init(); // lasketaan radan ominaisuuksia
 
   // varmistutaan ett„ tiedet„„n miss„ ollaan menossa
   while (s.cur_rad!=curves[n].r||s.nex_rad!=curves[(n+1>NSEG?0:n+1)].r){
@@ -700,6 +752,11 @@ con_vec WappuCar(situation& s)// * * * * * *  PŽŽOHJELMA * * *  * *  * * * *  * 
   }
 	
  return result;
+}
+
+Driver * getWappuCarInstance()
+{
+  return new WappuCar();
 }
 
 

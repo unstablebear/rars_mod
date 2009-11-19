@@ -53,7 +53,7 @@ robot Stocker;
 robot Tokkie;
 robot Vector;
 robot Viper2H;
-robot WappuCar;
+//robot WappuCar;
 //robot Weaver1;
 
 robot2 getBulle2Instance;
@@ -65,6 +65,7 @@ robot2 getTutorial1Instance;
 robot2 getTutorial2Instance;
 robot2 getTutorial3Instance;
 robot2 getTutorial4Instance;
+robot2 getWappuCarInstance;
 
 #ifndef X_WINDOWS
   // Human robots do not exist in XWindows
@@ -102,7 +103,8 @@ Driver * drivers[] =
   new DriverOld( DougE1,    oBLUE,      oBLUE,       "car_blue_blue",    NULL,     "DougE1" ),
   new DriverOld( Vector,    oRED,       oRED,        "car_red_red",      "porshe", "Vector" ),
   new DriverOld( Bulle,     oGREEN,     oGREEN,      "car_green_green",  NULL,     "Bulle" ),
-  new DriverOld( WappuCar,  oWHITE,     oWHITE,      "car_white_white",  "futura", "WappuCar" ),
+  getWappuCarInstance(),
+  //new DriverOld( WappuCar,  oWHITE,     oWHITE,      "car_white_white",  "futura", "WappuCar" ),
 
   #ifndef X_WINDOWS
     // Human robots do not exist in XWindows
@@ -179,7 +181,8 @@ Driver* getDriver(char* driver_name)
 			      driver = new DriverOld( Bulle,     oGREEN,     oGREEN,      "car_green_green",  NULL,     "Bulle" );
 			    else
 			      if (strcmp(driver_name, "WappuCar") == 0)
-				driver = new DriverOld( WappuCar,  oWHITE,     oWHITE,      "car_white_white",  "futura", "WappuCar" );
+				driver = getWappuCarInstance();
+				//				driver = new DriverOld( WappuCar,  oWHITE,     oWHITE,      "car_white_white",  "futura", "WappuCar" );
 			      else
 				if (strcmp(driver_name, "Bulle2") == 0)
 				  driver = getBulle2Instance();
