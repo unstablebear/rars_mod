@@ -645,6 +645,7 @@ static double	BrakingDistance( double fromVel, double toVel )
 
 static double	BrakingDistanceBend( double fromVel, double toVel )
 {
+
 	double	dv = toVel - fromVel;
 	return (fromVel + 0.5 * dv) * dv / -BRAKE_ACCEL_BEND;
 }
@@ -2786,29 +2787,63 @@ double	D6InverseFriction::operator()( double friction )
 
 /////////////////////////////////////////////////////////////////////////////
 
-con_vec Dodger6( situation& s )
+class Dodger6 : public Driver
+{
+
+public:
+
+  char name[];
+
+  D6Track		track;
+  D6Slices		slices;
+  D6OptPath*	pOptPath;
+  D6CarPaths*	pCarPaths;
+  int			cur_p;
+  int			upd_p;
+  int			softServo;
+  int			bestCar;
+  bool			offsetTrack;
+  double		speedEstimate;
+  D6InverseFriction	invFriction;
+  int		damage;
+
+  Dodger6() 
+  {
+
+    m_iNoseColor = oWHITE;
+    m_iTailColor = oBLACK;
+    m_sBitmapName2D = "car_white_black";
+    m_sModel3D = NULL;
+    m_sName = "Dodger6";
+
+    char name[] = "Dodger6";	// This is the robot driver's name! 
+    D6OptPath*	pOptPath = 0;
+    D6CarPaths*	pCarPaths = 0;
+    int			cur_p = 0;
+    int			upd_p = 0;
+    int			softServo = 0;
+    int			bestCar = -1;
+    bool			offsetTrack = false;
+    double		speedEstimate = 0;
+    D6InverseFriction	invFriction;
+    int		damage = 0;
+  }
+
+  con_vec drive(situation& s);
+  
+};
+
+  con_vec Dodger6::drive( situation& s )
 { 
-	const char name[] = "Dodger6";	// This is the robot driver's name! 
 
-	static D6Track		track;
-	static D6Slices		slices;
-	static D6OptPath*	pOptPath = 0;
-	static D6CarPaths*	pCarPaths = 0;
+  printf("drive start\n");
 
-	static int			cur_p = 0;
-	static int			upd_p = 0;
-	static int			softServo = 0;
-	static int			bestCar = -1;
-	static bool			offsetTrack = false;
-	static double		speedEstimate = 0;
-
-	static D6InverseFriction	invFriction;
-
-	con_vec	result;		// control vector
-	int		damage = 0;
+  con_vec	result;		// control vector
 
 	if( s.starting )
 	{
+	  	printf("drive 1\n");
+
 		// first time only, copy name: 
 		my_name_is(name);
 
@@ -2828,6 +2863,8 @@ con_vec Dodger6( situation& s )
 			case 1:		CORN_MYU = MYU_MAX1;	break;
 			case 2:		CORN_MYU = MYU_MAX2;	break;
 		}
+
+		printf("drive 2\n");
 
 		// Changed 'FINISH' to 'FINISHED' by Carsten Kjaer
 		if( s.stage == BEFORE || s.stage == FINISHED )
@@ -2862,22 +2899,36 @@ con_vec Dodger6( situation& s )
 
 		s.out_pits = 0;
 
+		printf("drive end 1\n");
+
 		return result; 
 	} 
 
+	printf("drive 10\n");
+
 	// figure whether we need to refuel or repair damage (or both)
 	PitControl( s, result, damage );
+
+	printf("drive 11\n");
+
 	if( s.out_pits )
 		softServo = 100;
 
+	printf("drive 12\n");
+
 	// ask to see cars that are to the side, but slightly behind us
 	s.side_vision = true;
+
+
+	printf("drive 13\n");
 
 	// get details of current track segment
 	const D6Track::Segment	seg = track.GetSegment(s.seg_ID);
 
 	// work out current position of car, global coords
 	D6Vec2	carPt(race_data.cars[s.my_ID]->X, race_data.cars[s.my_ID]->Y);
+
+	printf("drive 15\n");
 
 	// work out current direction of car, global angle
 	double	carAngle = asin(s.vn / s.v);
@@ -2887,7 +2938,14 @@ con_vec Dodger6( situation& s )
 		carAngle += (carPt - seg.m_cen).GetAngle() + cPi_2;
 	else
 		carAngle += (carPt - seg.m_cen).GetAngle() - cPi_2;
+
+
+	printf("drive 19\n");
+
 	carAngle = NormaliseAngle(carAngle);
+
+
+	printf("drive 20\n");
 
 	D6Vec2	carDir = D6Vec2::FromAngle(carAngle);
 //	D6Vec2	carVel = carDir * s.v;
@@ -2918,7 +2976,12 @@ con_vec Dodger6( situation& s )
 
 	int		count = 0;
 
+	printf("drive 50\n");
+
 calcTargets:
+
+	printf("drive 51\n");
+
 //	D6Vec2	p0 = path.GetAt(prev_p).m_p;
 //	D6Vec2	p1 = path.GetAt(cur_p).m_p;
 //	D6Vec2	p2 = path.GetAt(next_p).m_p;
@@ -3140,6 +3203,12 @@ calcTargets:
 	result.vc = vc;
 	result.alpha = alpha;
 
+	printf("drive end 2\n");
+
 	return result; 
 } 
 
+Driver * getDodger6Instance()
+{
+  return new Dodger6();
+}

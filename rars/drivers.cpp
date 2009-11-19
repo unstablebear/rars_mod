@@ -66,6 +66,7 @@ robot2 getTutorial2Instance;
 robot2 getTutorial3Instance;
 robot2 getTutorial4Instance;
 robot2 getWappuCarInstance;
+robot2 getDodger6Instance;
 
 #ifndef X_WINDOWS
   // Human robots do not exist in XWindows
@@ -87,13 +88,14 @@ Driver * drivers[] =
   getJppInstance(),
   getMafanjaInstance(),
   getSmoothBInstance(),
+  getDodger6Instance(),
   new DriverOld( Sparky5,   oRED,       oBLACK,      "car_red_black",    NULL,     "Sparky5" ),
   new DriverOld( K1999,     oBLACK,     oBLACK,      "car_black_black",  NULL,     "K1999" ),
   new DriverOld( K2001,     oBLACK,     oBLACK,      "car_black_black",  NULL,     "K2001" ),
   new DriverOld( JOCOSA83,  oLIGHTMAGENTA, oLIGHTMAGENTA, "car_orange_orange",NULL,"Jocosa83" ),
   new DriverOld( Felix16,   oLIGHTGREEN,oLIGHTRED,   "car_lgreen_lred",  NULL,     "Felix16" ),
   new DriverOld( Apex1,     oLIGHTGRAY, oLIGHTGRAY,  "car_gray_gray",    NULL,     "Apex1" ),
-  new DriverOld( Dodger6,   oWHITE,     oBLACK,      "car_white_black",  NULL,     "Dodger6" ),
+  //new DriverOld( Dodger6,   oWHITE,     oBLACK,      "car_white_black",  NULL,     "Dodger6" ),
   new DriverOld( Apex8,     oLIGHTGRAY, oLIGHTGRAY,  "car_gray_gray",    NULL,     "Apex8" ),
   new DriverOld( Djoefe,    oYELLOW,    oYELLOW,     "car_yellow_yellow",NULL,     "Djoefe" ),
   new DriverOld( O1,        oMAGENTA,   oMAGENTA,    "car_pink_pink",    NULL,     "O1" ),
@@ -156,8 +158,9 @@ Driver* getDriver(char* driver_name)
 	    if (strcmp(driver_name, "Apex1") == 0)
 	      driver = new DriverOld( Apex1,     oLIGHTGRAY, oLIGHTGRAY,  "car_gray_gray",    NULL,     "Apex1" );
 	    else
-	      if (strcmp(driver_name, "Dodger8") == 0)
-		driver = new DriverOld( Dodger6,   oWHITE,     oBLACK,      "car_white_black",  NULL,     "Dodger6" );
+	      if (strcmp(driver_name, "Dodger6") == 0)
+		driver = getDodger6Instance();
+		//		driver = new DriverOld( Dodger6,   oWHITE,     oBLACK,      "car_white_black",  NULL,     "Dodger6" );
 	      else
 		if (strcmp(driver_name, "Apex8") == 0)
 		  driver = new DriverOld( Apex8,     oLIGHTGRAY, oLIGHTGRAY,  "car_gray_gray",    NULL,     "Apex8" );

@@ -347,6 +347,9 @@ Car::~Car()
  */
 void Car::Control()
 {
+
+  printf("control start\n");
+
   con_vec output;
   int i;
 
@@ -365,8 +368,9 @@ void Car::Control()
     {
       os.ShowInitMessage( "Initialising car: %s", driver->getName() );
     }
+    printf("control 1\n");
     output = driver->drive(s);// call the robot driver
-
+    printf("control 2\n");
     if (starting)            // new in version 0.70
     {
       fuel = output.fuel_amount;
@@ -430,6 +434,7 @@ void Car::Control()
       fuel_amount = MAX_FUEL - fuel;   // no more than full tank!
     }
   }
+  printf("control end\n");
 }
 
 /**
