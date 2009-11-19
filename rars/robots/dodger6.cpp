@@ -2192,128 +2192,6 @@ void	D6CarPaths::Record( int carId, const D6Vec2& carPt, double speed )
 
 /////////////////////////////////////////////////////////////////////////
 
-static void	PitControl( const situation& s, con_vec& control, int& damage )
-{
-	static int		totalDamage = 0;
-	static int		lastDamage = 0;
-	static int		lastRepairLap = 0;
-	static double	totalFuel = 0;
-	static double	fuelPerLap = 10;
-	static double	lastFuel = 0;
-
-	if( s.starting )
-	{
-		if( s.stage == QUALIFYING )
-		{
-			control.fuel_amount = 30;
-			control.request_pit = false;
-			control.repair_amount = 0;
-		}
-		else
-		{
-			control.fuel_amount = MAX_FUEL;
-			control.request_pit = false;
-			control.repair_amount = 0;
-		}
-
-		totalDamage = 0;
-		lastDamage = 0;
-		lastRepairLap = 0;
-		totalFuel = 0;
-		fuelPerLap = 10;
-		lastFuel = control.fuel_amount;
-
-		return;
-	}
-
-	damage = 0;
-	if( int(s.damage) > lastDamage )
-	{
-		// accumulate damage since start, or last repair
-		damage = int(s.damage) - lastDamage;
-		totalDamage += damage;
-	}
-	else if( int(s.damage) < lastDamage )
-	{
-		// must be in the pits... reset the average damage
-		//	calculation.  this is done because in most cases
-		//	the first few laps of the race produce the most
-		//	damage per lap.  if we are in the pits now, then
-		//	we don't want to keep the inflated average anymore.
-		lastRepairLap = s.laps_done;
-		totalDamage = 0;
-	}
-	lastDamage = s.damage;
-
-	if( s.fuel < lastFuel )
-		totalFuel += lastFuel - s.fuel;
-	lastFuel = s.fuel;
-
-	if( s.lap_flag )
-	{
-		if( s.laps_done >= 1 )
-			fuelPerLap = totalFuel / s.laps_done;
-	}
-
-	int		lapsSinceRepair = s.laps_done - lastRepairLap;
-	double	aveDamage = totalDamage / max(1, lapsSinceRepair);
-	double	predDamage = s.damage + aveDamage * (s.laps_to_go + 2);
-	bool	repairDamage =	(s.damage >= 25000 ||
-							 s.damage >= 20000 && predDamage >= 25000 ||
-							 s.damage >= 15000 && predDamage >= 30000);
-
-	int		lapsOnFullTank = int(MAX_FUEL / fuelPerLap);
-	int		lapsOnFuel = int(s.fuel / fuelPerLap);
-	int		nStopsIfRefuelNow = (s.laps_to_go + lapsOnFullTank - 1) /
-									lapsOnFullTank;
-	int		nStopsIfRefuelLater = (s.laps_to_go - lapsOnFuel +
-									lapsOnFullTank - 1) / lapsOnFullTank;
-	bool	delayStop = nStopsIfRefuelNow > nStopsIfRefuelLater;
-	if( repairDamage && s.damage + aveDamage < 20000 && delayStop )
-		repairDamage = false;
-
-	double	trackLen = get_track_description().length;
-	double	fuelToEndOfLap = (1 - s.distance / trackLen) * fuelPerLap;
-	bool	canFinishLap = fuelToEndOfLap < s.fuel;
-	if( s.stage != QUALIFYING &&
-		(s.laps_to_go > 1 || !canFinishLap) &&
-		(repairDamage || s.fuel < fuelPerLap * 1.2 ) )
-	{
-		// ok, we need to go into the pits now
-		control.request_pit = true;
-
-		// work out the amount of fuel we want
-		double	fuelToEnd = min(MAX_FUEL, fuelPerLap * (s.laps_to_go + 1));
-		control.fuel_amount = max(0, fuelToEnd - s.fuel);
-
-		// we can repair some damage for "free" while the fuel is
-		//	going in...
-		double	freeRepair = (control.fuel_amount - s.fuel) *
-								cPitSecsPerFuel / cPitSecsPerDamage;
-
-		double	repair = 0;
-		if( repairDamage )
-		{
-			// repair the amount needed to get us to the end with
-			//	about 15000 damage
-			repair = predDamage - 15000;
-		}
-		else
-		{
-			// we have just stopped in to re-fuel... but we will still
-			//	repair some damage, related to how far we have yet
-			//	to travel.
-			repair = (s.laps_to_go - 5) * 250;
-		}
-
-		// limit repair to min=freeRepair and max=s.damage
-		control.repair_amount = (int)min(max(freeRepair, repair), s.damage);
-	}
-	else
-		control.request_pit = false;
-//	control.request_pit = true;
-}
-
 /////////////////////////////////////////////////////////////////////////////
 
 struct	D6Situation
@@ -2830,19 +2708,143 @@ public:
   }
 
   con_vec drive(situation& s);
+  void	PitControl( const situation& s, con_vec& control, int& damage );
   
 };
 
-  con_vec Dodger6::drive( situation& s )
+void	Dodger6::PitControl( const situation& s, con_vec& control, int& damage )
+{
+	int		totalDamage = 0;
+	int		lastDamage = 0;
+	int		lastRepairLap = 0;
+	double	totalFuel = 0;
+	double	fuelPerLap = 10;
+	double	lastFuel = 0;
+
+	if( s.starting )
+	{
+		if( s.stage == QUALIFYING )
+		{
+			control.fuel_amount = 30;
+			control.request_pit = false;
+			control.repair_amount = 0;
+		}
+		else
+		{
+			control.fuel_amount = MAX_FUEL;
+			control.request_pit = false;
+			control.repair_amount = 0;
+		}
+
+		totalDamage = 0;
+		lastDamage = 0;
+		lastRepairLap = 0;
+		totalFuel = 0;
+		fuelPerLap = 10;
+		lastFuel = control.fuel_amount;
+
+		return;
+	}
+
+	damage = 0;
+	if( int(s.damage) > lastDamage )
+	{
+		// accumulate damage since start, or last repair
+		damage = int(s.damage) - lastDamage;
+		totalDamage += damage;
+	}
+	else if( int(s.damage) < lastDamage )
+	{
+		// must be in the pits... reset the average damage
+		//	calculation.  this is done because in most cases
+		//	the first few laps of the race produce the most
+		//	damage per lap.  if we are in the pits now, then
+		//	we don't want to keep the inflated average anymore.
+		lastRepairLap = s.laps_done;
+		totalDamage = 0;
+	}
+	lastDamage = s.damage;
+
+	if( s.fuel < lastFuel )
+		totalFuel += lastFuel - s.fuel;
+	lastFuel = s.fuel;
+
+	if( s.lap_flag )
+	{
+		if( s.laps_done >= 1 )
+			fuelPerLap = totalFuel / s.laps_done;
+	}
+
+	int		lapsSinceRepair = s.laps_done - lastRepairLap;
+	double	aveDamage = totalDamage / max(1, lapsSinceRepair);
+	double	predDamage = s.damage + aveDamage * (s.laps_to_go + 2);
+	bool	repairDamage =	(s.damage >= 25000 ||
+							 s.damage >= 20000 && predDamage >= 25000 ||
+							 s.damage >= 15000 && predDamage >= 30000);
+
+	int		lapsOnFullTank = int(MAX_FUEL / fuelPerLap);
+	int		lapsOnFuel = int(s.fuel / fuelPerLap);
+	int		nStopsIfRefuelNow = (s.laps_to_go + lapsOnFullTank - 1) /
+									lapsOnFullTank;
+	int		nStopsIfRefuelLater = (s.laps_to_go - lapsOnFuel +
+									lapsOnFullTank - 1) / lapsOnFullTank;
+	bool	delayStop = nStopsIfRefuelNow > nStopsIfRefuelLater;
+	if( repairDamage && s.damage + aveDamage < 20000 && delayStop )
+		repairDamage = false;
+
+	double	trackLen = get_track_description().length;
+	double	fuelToEndOfLap = (1 - s.distance / trackLen) * fuelPerLap;
+	bool	canFinishLap = fuelToEndOfLap < s.fuel;
+	if( s.stage != QUALIFYING &&
+		(s.laps_to_go > 1 || !canFinishLap) &&
+		(repairDamage || s.fuel < fuelPerLap * 1.2 ) )
+	{
+		// ok, we need to go into the pits now
+		control.request_pit = true;
+
+		// work out the amount of fuel we want
+		double	fuelToEnd = min(MAX_FUEL, fuelPerLap * (s.laps_to_go + 1));
+		control.fuel_amount = max(0, fuelToEnd - s.fuel);
+
+		// we can repair some damage for "free" while the fuel is
+		//	going in...
+		double	freeRepair = (control.fuel_amount - s.fuel) *
+								cPitSecsPerFuel / cPitSecsPerDamage;
+
+		double	repair = 0;
+		if( repairDamage )
+		{
+			// repair the amount needed to get us to the end with
+			//	about 15000 damage
+			repair = predDamage - 15000;
+		}
+		else
+		{
+			// we have just stopped in to re-fuel... but we will still
+			//	repair some damage, related to how far we have yet
+			//	to travel.
+			repair = (s.laps_to_go - 5) * 250;
+		}
+
+		// limit repair to min=freeRepair and max=s.damage
+		control.repair_amount = (int)min(max(freeRepair, repair), s.damage);
+	}
+	else
+		control.request_pit = false;
+//	control.request_pit = true;
+}
+
+
+con_vec Dodger6::drive( situation& s )
 { 
 
-  printf("drive start\n");
+  //  printf("drive start\n");
 
   con_vec	result;		// control vector
 
 	if( s.starting )
 	{
-	  	printf("drive 1\n");
+	  	//printf("drive 1\n");
 
 		// first time only, copy name: 
 		my_name_is(name);
@@ -2864,7 +2866,7 @@ public:
 			case 2:		CORN_MYU = MYU_MAX2;	break;
 		}
 
-		printf("drive 2\n");
+		//printf("drive 2\n");
 
 		// Changed 'FINISH' to 'FINISHED' by Carsten Kjaer
 		if( s.stage == BEFORE || s.stage == FINISHED )
@@ -2899,28 +2901,28 @@ public:
 
 		s.out_pits = 0;
 
-		printf("drive end 1\n");
+		//printf("drive end 1\n");
 
 		return result; 
 	} 
 
-	printf("drive 10\n");
+	//printf("drive 10\n");
 
 	// figure whether we need to refuel or repair damage (or both)
 	PitControl( s, result, damage );
 
-	printf("drive 11\n");
+	//printf("drive 11\n");
 
 	if( s.out_pits )
 		softServo = 100;
 
-	printf("drive 12\n");
+	//printf("drive 12\n");
 
 	// ask to see cars that are to the side, but slightly behind us
 	s.side_vision = true;
 
 
-	printf("drive 13\n");
+	//printf("drive 13\n");
 
 	// get details of current track segment
 	const D6Track::Segment	seg = track.GetSegment(s.seg_ID);
@@ -2928,7 +2930,7 @@ public:
 	// work out current position of car, global coords
 	D6Vec2	carPt(race_data.cars[s.my_ID]->X, race_data.cars[s.my_ID]->Y);
 
-	printf("drive 15\n");
+	//printf("drive 15\n");
 
 	// work out current direction of car, global angle
 	double	carAngle = asin(s.vn / s.v);
@@ -2940,12 +2942,12 @@ public:
 		carAngle += (carPt - seg.m_cen).GetAngle() - cPi_2;
 
 
-	printf("drive 19\n");
+	//printf("drive 19\n");
 
 	carAngle = NormaliseAngle(carAngle);
 
 
-	printf("drive 20\n");
+	//printf("drive 20\n");
 
 	D6Vec2	carDir = D6Vec2::FromAngle(carAngle);
 //	D6Vec2	carVel = carDir * s.v;
@@ -2976,11 +2978,11 @@ public:
 
 	int		count = 0;
 
-	printf("drive 50\n");
+	//printf("drive 50\n");
 
 calcTargets:
 
-	printf("drive 51\n");
+	//printf("drive 51\n");
 
 //	D6Vec2	p0 = path.GetAt(prev_p).m_p;
 //	D6Vec2	p1 = path.GetAt(cur_p).m_p;
@@ -3203,7 +3205,7 @@ calcTargets:
 	result.vc = vc;
 	result.alpha = alpha;
 
-	printf("drive end 2\n");
+	//printf("drive end 2\n");
 
 	return result; 
 } 

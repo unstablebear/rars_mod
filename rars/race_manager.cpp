@@ -262,7 +262,7 @@ int RaceManager::RaceLoop()
 int RaceManager::NormalRaceLoop()
 {
   
-  printf("loop start\n");
+  //printf("loop start\n");
 
   int i;
   rel_state rel_state_vec[NEARBY_CARS];// contains 5 relative state vectors
@@ -273,10 +273,10 @@ int RaceManager::NormalRaceLoop()
   {
     race_data.cars[i]->Observe();      // compute its local situation
   }
-  printf("loop 12\n");
+  //printf("loop 12\n");
   if( args.m_iMovieMode!=MOVIE_PLAYBACK ) // not possible if in replay mode
   {
-    printf("loop 13\n");
+    //printf("loop 13\n");
     for(i=0; i<args.m_iNumCar; i++)         // for each car:
     { 
       race_data.cars[i]->CheckNearby(rel_state_vec); // report nearby cars
@@ -284,18 +284,18 @@ int RaceManager::NormalRaceLoop()
       if( !race_data.cars[i]->out )
       {
         RobotTimer.startTimer();
-	printf("loop 14\n");
+	//printf("loop 14\n");
         race_data.cars[i]->Control();              // compute a control vector
-	printf("loop 15\n");
+	//printf("loop 15\n");
         race_data.cars[i]->RobotTime += RobotTimer.stopTimer();
       }
       else
         race_data.cars[i]->Control();              // compute a control vector
-      printf("loop 16\n");
+      //printf("loop 16\n");
     }
   }
 
-  printf("loop 1\n");
+  //printf("loop 1\n");
 
   //////// move_car, check collisions:
   for(i=0; i<args.m_iNumCar; i++)             // for each car:
@@ -320,7 +320,7 @@ int RaceManager::NormalRaceLoop()
   }
 
 
-  printf("loop 2\n");  
+  //printf("loop 2\n");  
 
   bool is_log_needed = false;
   if((loop_cnt++ % args.log_interval) == 0)
@@ -356,7 +356,7 @@ int RaceManager::NormalRaceLoop()
       logFile << "\t</step>" << endl << flush;
     }
 
-  printf("loop 3\n");
+  //printf("loop 3\n");
 
   if(draw.m_bDisplay && draw.m_iFastDisplay > -1)
   {
@@ -374,7 +374,7 @@ int RaceManager::NormalRaceLoop()
 
   draw.UpdateLeaderboard();
 
-  printf("loop 4\n");
+  //printf("loop 4\n");
 
   // This section is required to update Instrument Panel:
   if(draw.m_bDisplay && draw.m_iCarShown >= 0)   // only if some driver is selected
@@ -388,20 +388,20 @@ int RaceManager::NormalRaceLoop()
 
   if( Keyboard() )
   {
-    printf("loop end 1\n");
+    //printf("loop end 1\n");
     return(0); // ESC key will end the race.
   }
 
   // check for race over:
   if ((race_data.m_iNumCarFinished + race_data.m_iNumCarOut >= args.m_iNumCar) && (--m_iEndExtraTime < 0))
   {
-    printf("loop end 2\n");
+    //printf("loop end 2\n");
     return(0);
   }
   // also quit if lead car completes lap_count + 1 laps:
   if(race_data.cars[race_data.m_aCarInPos[0]]->Laps >= (race_data.stage==PRACTICE ? args.m_iNumPracticeLap : args.m_iNumLap) + 1)
   {
-    printf("loop end 3\n");
+    //printf("loop end 3\n");
     return(0);
   }
 
@@ -410,7 +410,7 @@ int RaceManager::NormalRaceLoop()
   {
     if( m_oMovie->isReplayFinished() )
     {
-      printf("loop end 4\n");
+      //printf("loop end 4\n");
       return(0);
     }
   }
@@ -424,7 +424,7 @@ int RaceManager::NormalRaceLoop()
       tick_count = 0;
     }
   }
-  printf("loop end 5\n");
+  //printf("loop end 5\n");
   return(1);                           // repeats race loop as long as (1) is returned
 }
 
