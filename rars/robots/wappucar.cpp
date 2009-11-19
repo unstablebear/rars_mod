@@ -693,8 +693,8 @@ con_vec WappuCar::drive(situation& s)// * * * * * *  PŽŽOHJELMA * * *  * *  * * 
     init_flag=false;
     return result;
   }
-  if (s.starting) result.fuel_amount = MAX_FUEL;
-  if (s.starting) wc_track_init(); // lasketaan radan ominaisuuksia
+  if (!init_flag) result.fuel_amount = MAX_FUEL;
+  if (!init_flag) wc_track_init(); // lasketaan radan ominaisuuksia
 
   // varmistutaan ett„ tiedet„„n miss„ ollaan menossa
   while (s.cur_rad!=curves[n].r||s.nex_rad!=curves[(n+1>NSEG?0:n+1)].r){
