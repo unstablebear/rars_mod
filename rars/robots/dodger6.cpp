@@ -2665,12 +2665,14 @@ double	D6InverseFriction::operator()( double friction )
 
 /////////////////////////////////////////////////////////////////////////////
 
+const char name[] = "Dodger6";
+
 class Dodger6 : public Driver
 {
 
 public:
 
-  char name[];
+  char name[8];
 
   D6Track		track;
   D6Slices		slices;
@@ -2685,6 +2687,13 @@ public:
   D6InverseFriction	invFriction;
   int		damage;
 
+  int		totalDamage;
+  int		lastDamage;
+  int		lastRepairLap;
+  double	totalFuel;
+  double	fuelPerLap;
+  double	lastFuel;
+
   Dodger6() 
   {
 
@@ -2694,17 +2703,24 @@ public:
     m_sModel3D = NULL;
     m_sName = "Dodger6";
 
-    char name[] = "Dodger6";	// This is the robot driver's name! 
-    D6OptPath*	pOptPath = 0;
-    D6CarPaths*	pCarPaths = 0;
-    int			cur_p = 0;
-    int			upd_p = 0;
-    int			softServo = 0;
-    int			bestCar = -1;
-    bool			offsetTrack = false;
-    double		speedEstimate = 0;
-    D6InverseFriction	invFriction;
-    int		damage = 0;
+    pOptPath = 0;
+    pCarPaths = 0;
+    cur_p = 0;
+    upd_p = 0;
+    softServo = 0;
+    bestCar = -1;
+    offsetTrack = false;
+    speedEstimate = 0;
+    invFriction;
+    damage = 0;
+
+    totalDamage = 0;
+    lastDamage = 0;
+    lastRepairLap = 0;
+    totalFuel = 0;
+    fuelPerLap = 10;
+    lastFuel = 0;
+
   }
 
   con_vec drive(situation& s);
@@ -2714,12 +2730,6 @@ public:
 
 void	Dodger6::PitControl( const situation& s, con_vec& control, int& damage )
 {
-	int		totalDamage = 0;
-	int		lastDamage = 0;
-	int		lastRepairLap = 0;
-	double	totalFuel = 0;
-	double	fuelPerLap = 10;
-	double	lastFuel = 0;
 
 	if( s.starting )
 	{
