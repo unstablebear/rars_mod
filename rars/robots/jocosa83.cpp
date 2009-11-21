@@ -67,7 +67,13 @@ char * names[ 20 ]    = { "CAUTION",
 */
 // static double CAUTION   = 0.5;        // CARLENs behind cars.
 
-class Josoca83 : public Driver
+// Josoca83 CLASS
+
+const float v_start[] = {1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f};
+const float d_start[] = {0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f};
+
+
+class Jocosa83 : public Driver
 {
 
 public:
@@ -106,9 +112,26 @@ public:
   int check_delta_percent;
   int forwards;
 
+  int last_pit;
+  double last_damage_pit;
+
+  int brake_count;
+  int vc_count;
+
+  int next_seg;
+
+  int init_flag;          // cleared by first call
+
+  float v[16];
+  float d[16];
+
+  int last_segment;
+  int slip_corrected;
+  int following_next;
+
   situation s;
 
-  Josoca83()
+  Jocosa83()
   {
     BRAKE_ACCEL = -40;      // acceleration when braking on straight
     BRK_CRV_ACC = -35;      // acceleration when braking in curve
@@ -116,9 +139,10 @@ public:
     DIST_FROM_INSIDE = 1; // target distance from curve's inner rail
     ALPHA_FACTOR = 2.0;       // cornering alpha factor
 
-    *rad        = NULL;
-    *len        = NULL;
-    *DP[2]      = { NULL, NULL };
+    rad        = NULL;
+    len        = NULL;
+    DP[0]      = NULL;
+    DP[1]      = NULL;
     width       = 0.0;
     real_width  = 0.0;
     max_speed   = 300.0;
@@ -143,36 +167,105 @@ public:
     check_delta_percent = 1;
     forwards            = 1;
 
+    last_pit = -1;
+    last_damage_pit = 0;
+
+    brake_count = 0;
+    vc_count = 0;
+    
+    next_seg = 0;
+
+    init_flag = 0;
+
+    for(int i = 0; i < 16; i++)
+    {
+      v[i] = v_start[i];
+      d[i] = d_start[i];
+    }
+
+    last_segment   = 0;
+    slip_corrected = 0;
+    following_next = 0;
+
   }
 
-}
+  int sign( double x );
+  int next( int i );
+  int prev( int i );
+  int n( int i );
+  int p( int i );
+  double radius( int i );
+  double length( int i );
+  double hipotenusa( double x, double y );
+  double cateto( double h, double x );
+  void set_rad_len( void );
+  double C_curve_percent( int i );
+  void request_pit( con_vec &result );
+  double s_curve_percent( int i, double l_n_i, int nn_i );
+  int touching_3rd_curve( int i );
+  int consider_nearby( int i,
+		       double max_dot,
+		       int n,
+		       double min_vsqr,
+		       double max_time,
+		       double x_factor,
+		       double y_factor
+		       );
 
-static int sign( double x ){ return x == 0.0 ? 0 : x > 0.0 ? 1 : -1;}
+  int closest();
+  int crash_in_front();
+  int apply_brakes();
+  int final_straight();
+  double t_distance( int i );
+  double brake_accel( int i );
+  double c_curve_percent( int i );
+  double delta_percent(int p);
+  double delta_percent_prev(int p);
+  void init_fast_vars();
+  void allocate_arrays();
+  double speed(double d);
+  double curve_distance(int);
+  double tangent_alpha( int segment,
+				  double to_end,
+				  double d,
+				  double &d_big,
+				  double &R );
+  double last_to_inner( int i );
+  double caution_factor( int n );
+  double corn_spd( int i ); // returns maximum cornering speed, fps
+  void calculate_max_a( );
+  double ending_speed( double Vo, double x, double a, double &e_d );
 
-static int next( int i ){ return ++i % numseg; };
-static int prev( int i ){ return --i < 0 ? numseg + i: i; };
+  con_vec drive( situation &ss );
 
-static int n( int i )
+};
+
+int Jocosa83::sign( double x ){ return x == 0.0 ? 0 : x > 0.0 ? 1 : -1;}
+
+int Jocosa83::next( int i ){ return ++i % numseg; };
+int Jocosa83::prev( int i ){ return --i < 0 ? numseg + i: i; };
+
+int Jocosa83::n( int i )
 { if( forwards ) return next( i ); return prev( i );}
 
-static int p( int i )
+int Jocosa83::p( int i )
 { if( forwards ) return prev( i ); return next( i );}
 
-static double curve_distance( int i );
-static double radius( int i );
-static double length( int i
-//                    int check_prev_rad,
-//                    int check_next_rad
-		    ); //, int check_delta_percent )
-
-
-static double hipotenusa( double x, double y )
+double Jocosa83::hipotenusa( double x, double y )
 { return sqrt( x*x + y*y ); }
 
-static double cateto( double h, double x )
+double Jocosa83::cateto( double h, double x )
 { return h>x ? sqrt( h*h - x*x ) : 0.0; }
 
-static void set_rad_len( void )
+//static double curve_distance( int i );
+//static double radius( int i );
+//static double length( int i
+////                    int check_prev_rad,
+////                    int check_next_rad
+//		    ); //, int check_delta_percent )
+
+
+void Jocosa83::set_rad_len( void )
 {
   segment *lftwall = get_track_description().trackin,
 	  *rgtwall = get_track_description().trackout;
@@ -231,7 +324,7 @@ static void trace_trajectories()
 */
 
 
-static double s_curve_percent( int i, double l_n_i, int nn_i )
+double Jocosa83::s_curve_percent( int i, double l_n_i, int nn_i )
 { //static int j=0;
   double x1, y1, x2, y2, xx, yy, d, d2, r1, r2, l_i, l_nn_i, d3=0.0,
 	 cur_factor = DP[forwards][i];
@@ -425,7 +518,7 @@ static double s_curve_percent( int i, double l_n_i, int nn_i )
 }
 
 
-static int touching_3rd_curve( int i )
+int Jocosa83::touching_3rd_curve( int i )
 {
   if( rad[ n(n(i)) ] == 0.0 )
     return 0;
@@ -438,7 +531,7 @@ static int touching_3rd_curve( int i )
 }
 
 
-static double c_curve_percent( int i )
+double Jocosa83::c_curve_percent( int i )
 { double l_i, R, r_o, x, y, d, cur_factor=DP[forwards][i],t;
 
 //  do
@@ -509,7 +602,7 @@ static double c_curve_percent( int i )
 }
 
 
-static double C_curve_percent( int i )
+double Jocosa83::C_curve_percent( int i )
 { double cur_factor = DP[forwards][i], l_i, R, x, y, d, r_in, r2;
 
 //  x2 = curve_distance( n(n(i)));
@@ -576,9 +669,9 @@ static int first_segment( )
 }
 */
 
-static void request_pit( con_vec &result )
-{ static int last_pit = -1;
-  static double last_damage = 0;
+void Jocosa83::request_pit( con_vec &result )
+{ 
+
   double l = get_track_description().length / 5280.; // in miles
   long double amount;
 
@@ -586,7 +679,7 @@ static void request_pit( con_vec &result )
 
   if( s.out_pits == 1 )
     last_pit = s.laps_done,
-    last_damage = s.damage;
+    last_damage_pit = s.damage;
 
 //  if( s.damage > 20000 )
 //  {
@@ -607,7 +700,7 @@ static void request_pit( con_vec &result )
       &&
       s.laps_done > last_pit
       &&
-      ( s.damage - last_damage ) / ( s.laps_done - last_pit )
+      ( s.damage - last_damage_pit ) / ( s.laps_done - last_pit )
       >
       (30000.-s.damage) / s.laps_to_go
     )
@@ -615,7 +708,7 @@ static void request_pit( con_vec &result )
     amount = s.damage;
     amount -= 15000.;
     for(int i=1; i<s.laps_to_go && amount < 30000.; i++ )
-      amount += ( s.damage - last_damage ) / ( s.laps_done - last_pit );
+      amount += ( s.damage - last_damage_pit ) / ( s.laps_done - last_pit );
 
     if( amount > s.damage )
       amount = s.damage;
@@ -662,7 +755,7 @@ static void request_pit( con_vec &result )
 }
 
 
-static double delta_percent( int i )
+double Jocosa83::delta_percent( int i )
 { double dp = 0.0;
 
 //  if( request_pit()
@@ -716,7 +809,7 @@ static double delta_percent( int i )
 
 
 
-static double delta_percent_prev( int i )
+double Jocosa83::delta_percent_prev( int i )
 { double dp = 0.0;
 
   if( len[ i ] == 0.0 )
@@ -767,7 +860,7 @@ static double delta_percent_prev( int i )
 }
 
 
-static void init_fast_vars()
+void Jocosa83::init_fast_vars()
 {
 /*  int i;//,j;
   for( i=0; i<numseg+SEGS_AHEAD; i++)
@@ -792,7 +885,7 @@ static void init_fast_vars()
 }
 
 
-static void allocate_arrays()
+void Jocosa83::allocate_arrays()
 {
   int m;
 
@@ -829,7 +922,7 @@ static void allocate_arrays()
 
 
 
-static double speed( double r )
+double Jocosa83::speed( double r )
 { double sp;
   if( r == 0.0 )
     sp = cur_speed + 20.0;
@@ -866,7 +959,7 @@ static double delta_length( int i )
 */
 
 
-static double length( int i
+double Jocosa83::length( int i
 //                    int check_prev_rad,
 //                    int check_next_rad
 		    ) //, int check_delta_percent )
@@ -954,7 +1047,7 @@ static double reduced_width( int i )
 }
 */
 
-static double radius( int i )
+double Jocosa83::radius( int i )
 {
 //  if( check_delta_percent
 //      &&
@@ -1024,7 +1117,7 @@ static double radius( int i )
   return r;
 }
 
-static double curve_distance( int i )
+double Jocosa83::curve_distance( int i )
 {
 //  if( i == -1 )
 //    return prev_x;
@@ -1052,12 +1145,12 @@ static double curve_distance( int i )
 }
 
 
-static double tangent_alpha( int segment,
-			     double to_end,
-			     double d,
+double Jocosa83::tangent_alpha( int segment,
+				double to_end,
+				double d,
 //                           int check_last_d,
-			     double &d_big,
-			     double &R )
+				double &d_big,
+				double &R )
 {
   double alpha, r, t, l, te, y, z, d2, alpha_t=0.0, l_bw;
 
@@ -1179,7 +1272,7 @@ static double tangent_alpha( int segment,
 
 
 
-static double last_to_inner( int i )
+double Jocosa83::last_to_inner( int i )
 {
   double lti,
 	 h,
@@ -1224,7 +1317,7 @@ static double last_to_inner( int i )
 
 
 
-static double caution_factor( int n )
+double Jocosa83::caution_factor( int n )
 {
 //  if( s.laps_to_go == Total_Laps )
 //    return  CAUTION ] + 4.0;
@@ -1259,7 +1352,7 @@ static double d_caution_f( )
 }
 */
 
-static double corn_spd( int i ) // returns maximum cornering speed, fps
+double Jocosa83::corn_spd( int i ) // returns maximum cornering speed, fps
 {
   // compute the speed
 
@@ -1344,7 +1437,7 @@ static double CritDist(double v0, double v1, double radius )
 }
 */
 
-static double ending_speed( double Vo, double x, double a, double &e_d )
+double Jocosa83::ending_speed( double Vo, double x, double a, double &e_d )
 {
   double t, Vf;
 
@@ -1372,10 +1465,7 @@ static double ending_speed( double Vo, double x, double a, double &e_d )
   return Vf;
 }
 
-
-
-
-static void calculate_max_a( )
+void Jocosa83::calculate_max_a( )
 {
   double a;
 
@@ -1422,10 +1512,9 @@ static void calculate_max_a( )
   }
 
   else
-  { static int count=0;
-
-    if( ++count == 4 )
-    { count = 0;
+  { 
+    if( ++brake_count == 4 )
+    { brake_count = 0;
       if(  BRAKE_ACCEL < -40.0 )
 	BRAKE_ACCEL -= 40.0,
 	BRAKE_ACCEL *= 0.5;
@@ -1439,14 +1528,14 @@ static void calculate_max_a( )
 };
 
 
-static int consider_nearby( int i,
-			    double max_dot,
-			    int n,
-			    double min_vsqr,
-			    double max_time,
-			    double x_factor,
-			    double y_factor
-			  )
+int Jocosa83::consider_nearby( int i,
+		     double max_dot,
+		     int n,
+		     double min_vsqr,
+		     double max_time,
+		     double x_factor,
+		     double y_factor
+		     )
 {
   double y,x,vy,vx,dot,vsqr,c_time,x_close,y_close,theta,acc=0.0;
   y=s.nearby[i].rel_y;         // get forward distance (center-to-center)
@@ -1545,7 +1634,7 @@ static int consider_nearby( int i,
   return 1;
 }
 
-static int closest()
+int Jocosa83::closest()
 { int   min_i=-1;
   double min_d=sqrt(2*2*CARLEN*CARLEN+2*2*CARWID*CARWID),d;
   for( int i=0; i<16; i++ )
@@ -1568,18 +1657,16 @@ static int closest()
 	return min_i;
 }
 
-static int crash_in_front()
+int Jocosa83::crash_in_front()
 { int min_i = closest();
 	return min_i==-1 ? 0: ( s.nearby[min_i].rel_y > 0.0 );
 }
 
 
-static int apply_brakes()
+int Jocosa83::apply_brakes()
 {
   int i,result=0;
 //	static int init=0;
-  static float v[16]={1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f};
-  static float d[16]={0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f};
 //	con_vec r;
 /*
  	if( s.laps_to_go == Total_Laps )
@@ -1710,9 +1797,8 @@ static int start_caution( )
 	 ;
 }
 */
-static int final_straight( )
+int Jocosa83::final_straight( )
 {
-  static int next_seg = 0;
 
   next_seg &= s.laps_to_go != Total_Laps;
 
@@ -2024,7 +2110,7 @@ static void modify_width( )
 }
 */
 
-static double t_distance( int i )
+double Jocosa83::t_distance( int i )
 {
   double R = fabs( radius( i )),
 	 r = fabs( rad[ i ] ) + DIST_FROM_INSIDE,
@@ -2066,7 +2152,7 @@ static double t_distance( int i )
 }
 
 
-static double brake_accel( int i )
+double Jocosa83::brake_accel( int i )
 {
   if( rad[ i ] != 0.0 )
     return BRK_CRV_ACC;
@@ -2078,10 +2164,10 @@ static double brake_accel( int i )
        + BRAKE_ACCEL * (1-( curve_distance( n(i) ) + curve_distance( p(i) )) / len[ i ]);
 }
 
-con_vec JOCOSA83( situation &ss )
+con_vec Jocosa83::drive( situation &ss )
 {
    const char name[] = "JOCOSA83";    // This is the robot driver's name!
-   static int init_flag = 1;          // cleared by first call
+   int init_flag = 1;          // cleared by first call
    con_vec result;                    // This is what is returned.
    double alpha, vc;                  // components of result
    double r, d, t, q,
@@ -2099,13 +2185,6 @@ con_vec JOCOSA83( situation &ss )
 	  d_big,
 	  R,
 	  e_d;
-
-   static
-   int //i,
-       last_segment   = 0,
-       slip_corrected = 0,
-//       modified_seg   = 0,
-       following_next = 0;
 
    int //emergency_override = 0,
        use_alpha_factor = 1,
@@ -3499,14 +3578,14 @@ con_vec JOCOSA83( situation &ss )
       slip_corrected = 0;
     }
 
-    { static int count=0;
+    { 
 			if( vc > s.v )
 			{
-				vc = s.v + (vc-s.v)/1.0*count;
-				++count>1 ? count-- : count;
+				vc = s.v + (vc-s.v)/1.0*vc_count;
+				++vc_count>1 ? vc_count-- : vc_count;
 			}
 			else
-				count = 0;
+				vc_count = 0;
 		}
 
 		if( vc > s.v /*- 2.0*/ )
@@ -3537,4 +3616,9 @@ con_vec JOCOSA83( situation &ss )
       result.fuel_amount = MAX_FUEL;
 
   return result;
+}
+
+Driver * getJocosa83Instance()
+{
+  return new Jocosa83();
 }
