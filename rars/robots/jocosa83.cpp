@@ -66,63 +66,86 @@ char * names[ 20 ]    = { "CAUTION",
 			  "DAMAGE_74" };
 */
 // static double CAUTION   = 0.5;        // CARLENs behind cars.
-static double BRAKE_ACCEL = -40;      // acceleration when braking on straight
-static double BRK_CRV_ACC = -35;      // acceleration when braking in curve
-static double WIDTH_FACTOR = 10;     //
-static double DIST_FROM_INSIDE = 1; // target distance from curve's inner rail
-//double WIDTH = 5;         // affects the bias of steering
-//double SEGMENT_BREAK = 6;    // Segment number to plant Break Point
-//double DELTA_PERCENT = 7;     // Check short straight flag
-//double EMERG_ALPHA = 8;       // Emergency alpha
-//double TOO_CLOSE_FACTOR = 9;  // Width factor when approaching curves too closely
-//double ACCUM_FACTOR = 10;     // Integration factor
-//double CRV_RESISTANCE = 11;  // Curve resistance to follow ideal lane
-//double PASS_FACTOR = 12;      // Curve width factor
-static double ALPHA_FACTOR = 2.0;       // cornering alpha factor
-//double BRAKE_FACTOR = 14;     // cornering alpha factor
-//double D_TO_IDEAL = 15;       // distance to ideal lane
-//double D_MINUS_LAST_D = 16;  // speed to ideal lane
-//double ACCUM_D = 17;          // Accummulated distance to ideal lane
-//double STEER_SPD   = 18;     // steering speed limit
-//double DAMAGE = 19;           // Current Damage
 
+class Josoca83 : public Driver
+{
 
-static double *rad        = NULL,
-	      *len        = NULL,
-//	      *fast_r     = NULL,
-//	      *fast_x     = NULL,
-	      *DP[2]      = { NULL, NULL },
-	      width       = 0.0,
-	      real_width  = 0.0,
-	      max_speed   = 300.0,
-	      cur_speed   = 0.0,
-	      last_speed  = 1.0,
-	      cur_x       = 0.0,
-	      last_x      = 0.0,
-	      avg_a       = 40.0,
-	      last_rad    = 0.0,
-	      last_damage = 0.0,
-				lap_damage  = 0.0,
-				max_lap_damage = 0.0;
-//            prev_x      = 0.0;
+public:
+  
+  double BRAKE_ACCEL;      // acceleration when braking on straight
+  double BRK_CRV_ACC;      // acceleration when braking in curve
+  double WIDTH_FACTOR;     //
+  double DIST_FROM_INSIDE; // target distance from curve's inner rail
+  double ALPHA_FACTOR;       // cornering alpha factor
 
-static int    too_close      = 0,
-	      Total_Laps     = 0,
-	      width_reduced  = 0,
-	      segment_change = 0,
-	      outside_lane   = 0,
-	      curveing       = 0,
-//            first_lap      = 1,
-	      SEGS_AHEAD     = 1,
-	      numseg         = 1,
-	      check_delta_percent = 1,
-	      forwards            = 1;
-//	      recursed            = 0;
+  double *rad;
+  double *len;
+  double *DP[2];
+  double width;
+  double real_width;
+  double max_speed;
+  double cur_speed;
+  double last_speed;
+  double cur_x;
+  double last_x;
+  double avg_a;
+  double last_rad;
+  double last_damage;
+  double lap_damage;
+  double max_lap_damage;
 
+  int too_close;
+  int Total_Laps;
+  int width_reduced;
+  int segment_change;
+  int outside_lane;
+  int curveing;
 
-static situation s;
+  int SEGS_AHEAD;
+  int numseg;
+  int check_delta_percent;
+  int forwards;
 
+  situation s;
 
+  Josoca83()
+  {
+    BRAKE_ACCEL = -40;      // acceleration when braking on straight
+    BRK_CRV_ACC = -35;      // acceleration when braking in curve
+    WIDTH_FACTOR = 10;     //
+    DIST_FROM_INSIDE = 1; // target distance from curve's inner rail
+    ALPHA_FACTOR = 2.0;       // cornering alpha factor
+
+    *rad        = NULL;
+    *len        = NULL;
+    *DP[2]      = { NULL, NULL };
+    width       = 0.0;
+    real_width  = 0.0;
+    max_speed   = 300.0;
+    cur_speed   = 0.0;
+    last_speed  = 1.0;
+    cur_x       = 0.0;
+    last_x      = 0.0;
+    avg_a       = 40.0;
+    last_rad    = 0.0;
+    last_damage = 0.0;
+    lap_damage  = 0.0;
+    max_lap_damage = 0.0;
+
+    too_close      = 0;
+    Total_Laps     = 0;
+    width_reduced  = 0;
+    segment_change = 0;
+    outside_lane   = 0;
+    curveing       = 0;
+    SEGS_AHEAD     = 1;
+    numseg         = 1;
+    check_delta_percent = 1;
+    forwards            = 1;
+
+  }
+
+}
 
 static int sign( double x ){ return x == 0.0 ? 0 : x > 0.0 ? 1 : -1;}
 
