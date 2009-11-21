@@ -133,6 +133,13 @@ public:
 
   Jocosa83()
   {
+
+    m_iNoseColor = oLIGHTMAGENTA;
+    m_iTailColor = oLIGHTMAGENTA;
+    m_sBitmapName2D = "car_orange_orange";
+    m_sModel3D = NULL;
+    m_sName = "Jocosa83";
+
     BRAKE_ACCEL = -40;      // acceleration when braking on straight
     BRK_CRV_ACC = -35;      // acceleration when braking in curve
     WIDTH_FACTOR = 10;     //
@@ -175,7 +182,7 @@ public:
     
     next_seg = 0;
 
-    init_flag = 0;
+    init_flag = 1;
 
     for(int i = 0; i < 16; i++)
     {
@@ -2167,7 +2174,6 @@ double Jocosa83::brake_accel( int i )
 con_vec Jocosa83::drive( situation &ss )
 {
    const char name[] = "JOCOSA83";    // This is the robot driver's name!
-   int init_flag = 1;          // cleared by first call
    con_vec result;                    // This is what is returned.
    double alpha, vc;                  // components of result
    double r, d, t, q,
