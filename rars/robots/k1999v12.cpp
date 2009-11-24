@@ -40,8 +40,6 @@
 static const int Iterations = 150;     // Number of smoothing operations
 
 static const double SecurityR = 200.0; // Security radius
-static double SideDistExt = 4.0; // Security distance wrt outside
-static double SideDistInt = 0.5; // Security distance wrt inside
 
 //
 // These compilation options are used to dump info during development
@@ -166,114 +164,6 @@ static double Max(double x1, double x2)
 /////////////////////////////////////////////////////////////////////////////
 const int MaxDivs = 5000;
 
-static double TireAccel;
-static track_desc Track;
-static int Divs;
-static double TrackLength;
-static double tDistance[MaxDivs];
-static double txLeft[MaxDivs];
-static double tyLeft[MaxDivs];
-static double txRight[MaxDivs];
-static double tyRight[MaxDivs];
-
-/////////////////////////////////////////////////////////////////////////////
-// Find largest index before Dist
-/////////////////////////////////////////////////////////////////////////////
-static int GetIndex(double Dist, int Hint = 0)
-{
- while (Dist > Track.length)
-  Dist -= Track.length;
- while (Dist < 0)
-  Dist += Track.length;
-
- int i = Hint;
-
- while (1)
- {
-  double d0 = tDistance[i];
-  double d = Dist;
-  double d1 = tDistance[(i + 1) % Divs];
-
-  if (d0 > d1)
-  {
-   d1 += Track.length;
-   if (d0 > d)
-    d += Track.length;
-  }
-
-  if (d0 <= d && d <= d1)
-   break;
-  i = (i + 1) % Divs;
-  FATAL(i == Hint);
- }
-
- return i;
-}
-
-/////////////////////////////////////////////////////////////////////////////
-// Class for cubic and linear interpolation
-/////////////////////////////////////////////////////////////////////////////
-class CInterpolationContext // ic
-{
- public:
-  CInterpolationContext() : i1(0) {}
-  void SetDistance(double Dist);
-
-  int i0;
-  int i1;
-  int i2;
-  int i3;
-  double d0;
-  double d1;
-  double d2;
-  double d3;
-  double t;
-  double a0;
-  double a1;
-  double a2;
-  double a3;
-
-  double CubicInterpolation(const double *pd) const;
-  double LinearInterpolation(const double *pd) const;
-};
-
-/////////////////////////////////////////////////////////////////////////////
-// Find discrete position for interpolation context
-/////////////////////////////////////////////////////////////////////////////
-void CInterpolationContext::SetDistance(double Dist)
-{
- i1 = GetIndex(Dist, i1);
- i0 = (i1 + Divs - 1) % Divs;
- i2 = (i1 + 1) % Divs;
- i3 = (i1 + 2) % Divs;
-
- d0 = tDistance[i0];
- d1 = tDistance[i1];
- d2 = tDistance[i2];
- d3 = tDistance[i3];
-
- if (d0 > d1)
-  d0 -= Track.length;
- if (d1 > Dist)
- {
-  d0 -= Track.length;
-  d1 -= Track.length;
- }
- if (Dist > d2)
- {
-  d2 += Track.length;
-  d3 += Track.length;
- }
- if (d2 > d3)
-  d3 += Track.length;
-
- t = (Dist - d1) / (d2 - d1);
- a0 = (1 - t) * (1 - t) * (1 - t);
- a1 = 3 * (1 - t) * (1 - t) * t;
- a2 = 3 * (1 - t) * t * t;
- a3 = t * t * t;
-}
-
 /////////////////////////////////////////////////////////////////////////////
 // class to hold a path for a single car
 /////////////////////////////////////////////////////////////////////////////
@@ -312,10 +202,6 @@ class CK1999Path // path
   double GetGamma(const CInterpolationContext &ic) const;
   void Optimize();
 };
-
-static CK1999Path pathK1999;
-static CK1999Path pathK2001;
-static CK1999Path pathEmergency;
 
 /////////////////////////////////////////////////////////////////////////////
 // Update tx and ty arrays
@@ -376,76 +262,6 @@ static double InverseFriction(double a)
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// Get control from acceleration
-/////////////////////////////////////////////////////////////////////////////
-static double GetControl(double At,
-                         double An,
-                         double v,
-                         double mass,
-                         con_vec &result, double pm)
-{
- int fAdjustP = 0;
- double At1 = 0;
- double P1 = 0;
- double At0 = 0;
- double P0 = 0;
- int Loops = 0;
-
- while(1)
- {
-  if (++Loops >= 40)
-  {
-   OUTPUT("Control problem");
-   return At0;
-  }
-
-  double A = Mag(At, An);
-  if (A > 0)
-  {
-   double L = InverseFriction(A / g);
-   double SinTheta = An / A;
-   double CosTheta = At / A;
-   result.alpha = atan((L * SinTheta) / (L * CosTheta + v));
-   result.vc = (L * CosTheta + v) / cos(result.alpha);
-   double x = cos(result.alpha) * CosTheta + sin(result.alpha) * SinTheta;
-   double P = A * mass * result.vc * x;
-   
-   if (At < 0 || (!fAdjustP && P < pm) || (fAdjustP && P < pm && P > 0.999 * pm))
-    break;
-
-   if (!fAdjustP)
-   {
-    fAdjustP = 1;
-    At1 = At;
-    P1 = P;
-   }
-   else
-   {
-    if (P >= pm)
-    {
-     At1 = At;
-     P1 = P;
-    }
-    else
-    {
-     At0 = At;
-     P0 = P;
-    }
-   }
-
-   At = At0 + (0.9995 * pm - P0) * (At1 - At0) / (P1 - P0);
-  }
-  else
-  {
-   result.alpha = 0;
-   result.vc = 0;
-  }
- }
-
- return At;
-}
-
-/////////////////////////////////////////////////////////////////////////////
 // Draw a path (use gnuplot)
 /////////////////////////////////////////////////////////////////////////////
 #ifdef WRITE_FILES
@@ -461,109 +277,6 @@ void CK1999Path::DrawPath(ostream &out) const
  out << '\n';
 }
 #endif
-
-/////////////////////////////////////////////////////////////////////////////
-// Split the track into slices
-/////////////////////////////////////////////////////////////////////////////
-static void SplitTrack()
-{
- double DivLength = 10.0;
-lblRetry:
- double Distance = 0;
- double Angle = 0;
- double xPos = 0;
- double yPos = 0;
-
- Divs = 0;
- for (int i = 0; i < Track.NSEG; i++)
- {
-  double Length;
-  if (Track.rgtwall[i].radius == 0.0)
-   Length = Track.rgtwall[i].length;
-  else
-   Length = fabs(Track.rgtwall[i].radius - Track.width / 2) *
-            Track.rgtwall[i].length;
-
-  int Divisions = 1 + int(Length / DivLength);
-
-  for (int j = Divisions; --j >= 0;)
-  {
-   double cosine = cos(Angle);
-   double sine = sin(Angle);
-   double Step = Track.rgtwall[i].length / Divisions;
-
-   if (Track.rgtwall[i].radius == 0.0)
-   {
-    Distance += Step;
-    xPos += cosine * Step;
-    yPos += sine * Step;
-   }
-   else
-   {
-    double r = Track.rgtwall[i].radius;
-    double Theta = Step;
-    if (r < 0)
-    {
-     r = -r;
-     Theta = -Theta;
-    }
-
-    double L = Track.rgtwall[i].radius * 2 * sin(Theta / 2);
-    double x = L * cos(Theta / 2);
-    double y = L * sin(Theta / 2);
-
-    xPos += x * cosine - y * sine;
-    yPos += x * sine + y * cosine;
-
-    Angle += Theta;
-    Distance += fabs((Track.rgtwall[i].radius - Track.width / 2)) * Step;
-   }
- 
-   txLeft[Divs] = xPos - Track.width * sin(Angle);
-   tyLeft[Divs] = yPos + Track.width * cos(Angle);
-   txRight[Divs] = xPos;
-   tyRight[Divs] = yPos;
-   tDistance[Divs] = Distance;
-
-   Divs++;
-   if (Divs > MaxDivs)
-   {
-    DivLength *= 2;
-    OUTPUT("DivLength = " << DivLength);
-    goto lblRetry;
-   }
-  }  
- }
-
- OUTPUT("Position of the last point (should be (0, 0))");
- OUTPUT("xPos = " << xPos);
- OUTPUT("yPos = " << yPos);
-
- //
- // Handle cases where the last segment overlaps with the first
- //
- pathK1999.Reset();
- {
-  double dx = pathK1999.tx[1] - pathK1999.tx[0];
-  double dy = pathK1999.ty[1] - pathK1999.ty[0];
-  while(1)
-  {
-   double s = (pathK1999.tx[Divs - 1] - pathK1999.tx[0]) * dx +
-              (pathK1999.ty[Divs - 1] - pathK1999.ty[0]) * dy;
-   if (s > 0.0)
-   {
-    Divs--;
-    OUTPUT("Path element removed because of segment overlap");
-   }
-   else
-    break;
-  }
- }
-
- TrackLength = Distance;
- OUTPUT("Number of path elements : " << Divs);
- OUTPUT("Track length : " << TrackLength);
-}
 
 /////////////////////////////////////////////////////////////////////////////
 // Generic function for curvature of a triangle
@@ -1227,7 +940,7 @@ static void Initialize(double pm)
 /////////////////////////////////////////////////////////////////////////////
 // Generic class for the two drivers
 /////////////////////////////////////////////////////////////////////////////
-class KDriver
+class KDriver : public Driver
 {
  public:
 #ifdef LOG_DATA
@@ -1252,6 +965,25 @@ class KDriver
   CInterpolationContext ic;
   CInterpolationContext icNext;
 
+  //$$$
+
+  double SideDistExt; // Security distance wrt outside
+  double SideDistInt; // Security distance wrt inside
+
+  double TireAccel;
+  track_desc Track;
+  int Divs;
+  double TrackLength;
+  double tDistance[MaxDivs];
+  double txLeft[MaxDivs];
+  double tyLeft[MaxDivs];
+  double txRight[MaxDivs];
+  double tyRight[MaxDivs];
+
+  CK1999Path pathK1999;
+  CK1999Path pathK2001;
+  CK1999Path pathEmergency;
+
   KDriver(char * sNameInit, CK1999Path &pathInit) :
 #ifdef LOG_DATA
    ofsLog((sNameInit + ".log").c_str()),
@@ -1274,7 +1006,13 @@ class KDriver
    TotalFuel(0),
    PrevFuel(0)
    {
-	  strcpy( sName, sNameInit );
+     SideDistExt = 4.0; // Security distance wrt outside
+     SideDistInt = 0.5; // Security distance wrt inside
+
+     ic.kd = this;
+     icNext.kd = this;
+
+     strcpy( sName, sNameInit );
    }
 
 
@@ -1600,6 +1338,279 @@ con_vec KDriver::Drive(situation &s)
 
  return result;
 }
+
+/////////////////////////////////////////////////////////////////////////////
+// Find largest index before Dist
+/////////////////////////////////////////////////////////////////////////////
+int KDriver::GetIndex(double Dist, int Hint = 0)
+{
+ while (Dist > Track.length)
+  Dist -= Track.length;
+ while (Dist < 0)
+  Dist += Track.length;
+
+ int i = Hint;
+
+ while (1)
+ {
+  double d0 = tDistance[i];
+  double d = Dist;
+  double d1 = tDistance[(i + 1) % Divs];
+
+  if (d0 > d1)
+  {
+   d1 += Track.length;
+   if (d0 > d)
+    d += Track.length;
+  }
+
+  if (d0 <= d && d <= d1)
+   break;
+  i = (i + 1) % Divs;
+  FATAL(i == Hint);
+ }
+
+ return i;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Get control from acceleration
+/////////////////////////////////////////////////////////////////////////////
+double KDriver::GetControl(double At,
+                         double An,
+                         double v,
+                         double mass,
+                         con_vec &result, double pm)
+{
+ int fAdjustP = 0;
+ double At1 = 0;
+ double P1 = 0;
+ double At0 = 0;
+ double P0 = 0;
+ int Loops = 0;
+
+ while(1)
+ {
+  if (++Loops >= 40)
+  {
+   OUTPUT("Control problem");
+   return At0;
+  }
+
+  double A = Mag(At, An);
+  if (A > 0)
+  {
+   double L = InverseFriction(A / g);
+   double SinTheta = An / A;
+   double CosTheta = At / A;
+   result.alpha = atan((L * SinTheta) / (L * CosTheta + v));
+   result.vc = (L * CosTheta + v) / cos(result.alpha);
+   double x = cos(result.alpha) * CosTheta + sin(result.alpha) * SinTheta;
+   double P = A * mass * result.vc * x;
+   
+   if (At < 0 || (!fAdjustP && P < pm) || (fAdjustP && P < pm && P > 0.999 * pm))
+    break;
+
+   if (!fAdjustP)
+   {
+    fAdjustP = 1;
+    At1 = At;
+    P1 = P;
+   }
+   else
+   {
+    if (P >= pm)
+    {
+     At1 = At;
+     P1 = P;
+    }
+    else
+    {
+     At0 = At;
+     P0 = P;
+    }
+   }
+
+   At = At0 + (0.9995 * pm - P0) * (At1 - At0) / (P1 - P0);
+  }
+  else
+  {
+   result.alpha = 0;
+   result.vc = 0;
+  }
+ }
+
+ return At;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Split the track into slices
+/////////////////////////////////////////////////////////////////////////////
+void KDriver::SplitTrack()
+{
+ double DivLength = 10.0;
+lblRetry:
+ double Distance = 0;
+ double Angle = 0;
+ double xPos = 0;
+ double yPos = 0;
+
+ Divs = 0;
+ for (int i = 0; i < Track.NSEG; i++)
+ {
+  double Length;
+  if (Track.rgtwall[i].radius == 0.0)
+   Length = Track.rgtwall[i].length;
+  else
+   Length = fabs(Track.rgtwall[i].radius - Track.width / 2) *
+            Track.rgtwall[i].length;
+
+  int Divisions = 1 + int(Length / DivLength);
+
+  for (int j = Divisions; --j >= 0;)
+  {
+   double cosine = cos(Angle);
+   double sine = sin(Angle);
+   double Step = Track.rgtwall[i].length / Divisions;
+
+   if (Track.rgtwall[i].radius == 0.0)
+   {
+    Distance += Step;
+    xPos += cosine * Step;
+    yPos += sine * Step;
+   }
+   else
+   {
+    double r = Track.rgtwall[i].radius;
+    double Theta = Step;
+    if (r < 0)
+    {
+     r = -r;
+     Theta = -Theta;
+    }
+
+    double L = Track.rgtwall[i].radius * 2 * sin(Theta / 2);
+    double x = L * cos(Theta / 2);
+    double y = L * sin(Theta / 2);
+
+    xPos += x * cosine - y * sine;
+    yPos += x * sine + y * cosine;
+
+    Angle += Theta;
+    Distance += fabs((Track.rgtwall[i].radius - Track.width / 2)) * Step;
+   }
+ 
+   txLeft[Divs] = xPos - Track.width * sin(Angle);
+   tyLeft[Divs] = yPos + Track.width * cos(Angle);
+   txRight[Divs] = xPos;
+   tyRight[Divs] = yPos;
+   tDistance[Divs] = Distance;
+
+   Divs++;
+   if (Divs > MaxDivs)
+   {
+    DivLength *= 2;
+    OUTPUT("DivLength = " << DivLength);
+    goto lblRetry;
+   }
+  }  
+ }
+
+ OUTPUT("Position of the last point (should be (0, 0))");
+ OUTPUT("xPos = " << xPos);
+ OUTPUT("yPos = " << yPos);
+
+ //
+ // Handle cases where the last segment overlaps with the first
+ //
+ pathK1999.Reset();
+ {
+  double dx = pathK1999.tx[1] - pathK1999.tx[0];
+  double dy = pathK1999.ty[1] - pathK1999.ty[0];
+  while(1)
+  {
+   double s = (pathK1999.tx[Divs - 1] - pathK1999.tx[0]) * dx +
+              (pathK1999.ty[Divs - 1] - pathK1999.ty[0]) * dy;
+   if (s > 0.0)
+   {
+    Divs--;
+    OUTPUT("Path element removed because of segment overlap");
+   }
+   else
+    break;
+  }
+ }
+
+ TrackLength = Distance;
+ OUTPUT("Number of path elements : " << Divs);
+ OUTPUT("Track length : " << TrackLength);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Class for cubic and linear interpolation
+/////////////////////////////////////////////////////////////////////////////
+class CInterpolationContext // ic
+{
+ public:
+  CInterpolationContext() : i1(0) {}
+  void SetDistance(double Dist);
+  KDriver kd;
+
+  int i0;
+  int i1;
+  int i2;
+  int i3;
+  double d0;
+  double d1;
+  double d2;
+  double d3;
+  double t;
+  double a0;
+  double a1;
+  double a2;
+  double a3;
+
+  double CubicInterpolation(const double *pd) const;
+  double LinearInterpolation(const double *pd) const;
+};
+
+/////////////////////////////////////////////////////////////////////////////
+// Find discrete position for interpolation context
+/////////////////////////////////////////////////////////////////////////////
+void CInterpolationContext::SetDistance(double Dist)
+{
+ i1 = kd.GetIndex(Dist, i1);
+ i0 = (i1 + Divs - 1) % Divs;
+ i2 = (i1 + 1) % Divs;
+ i3 = (i1 + 2) % Divs;
+
+ d0 = tDistance[i0];
+ d1 = tDistance[i1];
+ d2 = tDistance[i2];
+ d3 = tDistance[i3];
+
+ if (d0 > d1)
+  d0 -= Track.length;
+ if (d1 > Dist)
+ {
+  d0 -= Track.length;
+  d1 -= Track.length;
+ }
+ if (Dist > d2)
+ {
+  d2 += Track.length;
+  d3 += Track.length;
+ }
+ if (d2 > d3)
+  d3 += Track.length;
+
+ t = (Dist - d1) / (d2 - d1);
+ a0 = (1 - t) * (1 - t) * (1 - t);
+ a1 = 3 * (1 - t) * (1 - t) * t;
+ a2 = 3 * (1 - t) * t * t;
+ a3 = t * t * t;
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 // One function for each car
