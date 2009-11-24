@@ -165,6 +165,93 @@ static double Max(double x1, double x2)
 const int MaxDivs = 5000;
 
 /////////////////////////////////////////////////////////////////////////////
+// Class for cubic and linear interpolation
+/////////////////////////////////////////////////////////////////////////////
+class CInterpolationContext // ic
+{
+ public:
+  CInterpolationContext() : i1(0) {}
+  void SetDistance(int Divs, int ii, double Dist, double *d, track_desc td);
+
+  int i0;
+  int i1;
+  int i2;
+  int i3;
+  double d0;
+  double d1;
+  double d2;
+  double d3;
+  double t;
+  double a0;
+  double a1;
+  double a2;
+  double a3;
+
+  double CubicInterpolation(const double *pd) const;
+  double LinearInterpolation(const double *pd) const;
+};
+
+/////////////////////////////////////////////////////////////////////////////
+// Find discrete position for interpolation context
+/////////////////////////////////////////////////////////////////////////////
+void CInterpolationContext::SetDistance(int Divs, int ii, double Dist, double tDistance[MaxDivs], track_desc Track)
+{
+ i1 = ii;
+ i0 = (i1 + Divs - 1) % Divs;
+ i2 = (i1 + 1) % Divs;
+ i3 = (i1 + 2) % Divs;
+
+ d0 = tDistance[i0];
+ d1 = tDistance[i1];
+ d2 = tDistance[i2];
+ d3 = tDistance[i3];
+
+ if (d0 > d1)
+  d0 -= Track.length;
+ if (d1 > Dist)
+ {
+  d0 -= Track.length;
+  d1 -= Track.length;
+ }
+ if (Dist > d2)
+ {
+  d2 += Track.length;
+  d3 += Track.length;
+ }
+ if (d2 > d3)
+  d3 += Track.length;
+
+ t = (Dist - d1) / (d2 - d1);
+ a0 = (1 - t) * (1 - t) * (1 - t);
+ a1 = 3 * (1 - t) * (1 - t) * t;
+ a2 = 3 * (1 - t) * t * t;
+ a3 = t * t * t;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Interpolate between points with a line
+/////////////////////////////////////////////////////////////////////////////
+double CInterpolationContext::LinearInterpolation(const double *pd) const
+{
+ return pd[i1] * (1 - t) + pd[i2] * t;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Interpolate between points with a cubic spline
+/////////////////////////////////////////////////////////////////////////////
+double CInterpolationContext::CubicInterpolation(const double *pd) const
+{
+ double x0 = pd[i1];
+ double x3 = pd[i2];
+ double der1 = (pd[i2] - pd[i0]) * (d2 - d1) / (d2 - d0);
+ double der2 = (pd[i3] - pd[i1]) * (d2 - d1) / (d3 - d1);
+ double x1 = x0 + der1 / 3;
+ double x2 = x3 - der2 / 3;
+
+ return x0 * a0 + x1 * a1 + x2 * a2 + x3 * a3;
+}
+
+/////////////////////////////////////////////////////////////////////////////
 // class to hold a path for a single car
 /////////////////////////////////////////////////////////////////////////////
 class CK1999Path // path
@@ -178,6 +265,18 @@ class CK1999Path // path
   double tEstimatedSpeed[MaxDivs];
   double tLane[MaxDivs];
   int tfConst[MaxDivs];
+
+  // pointers to common fields|members
+  double *txRight;
+  double *txLeft;
+  double *tyRight;
+  double *tyLeft;
+  int *Divs;
+  double *TireAccel;
+  double *SideDistInt;
+  double *SideDistExt;
+  double *TrackLength;
+  track_desc *Track;
 
   double pm;
   enum {K1999, K2001, Passing}; // types of path shape
@@ -217,7 +316,7 @@ void CK1999Path::UpdateTxTy(int i)
 /////////////////////////////////////////////////////////////////////////////
 void CK1999Path::Reset()
 {
- for (int i = Divs; --i >= 0;)
+ for (int i = *Divs; --i >= 0;)
  {
   tLane[i] = 0.5;
   tfConst[i] = 0;
@@ -262,14 +361,85 @@ static double InverseFriction(double a)
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// Get control from acceleration
+/////////////////////////////////////////////////////////////////////////////
+static double GetControl(double At,
+                         double An,
+                         double v,
+                         double mass,
+                         con_vec &result, double pm)
+{
+ int fAdjustP = 0;
+ double At1 = 0;
+ double P1 = 0;
+ double At0 = 0;
+ double P0 = 0;
+ int Loops = 0;
+
+ while(1)
+ {
+  if (++Loops >= 40)
+  {
+   OUTPUT("Control problem");
+   return At0;
+  }
+
+  double A = Mag(At, An);
+  if (A > 0)
+  {
+   double L = InverseFriction(A / g);
+   double SinTheta = An / A;
+   double CosTheta = At / A;
+   result.alpha = atan((L * SinTheta) / (L * CosTheta + v));
+   result.vc = (L * CosTheta + v) / cos(result.alpha);
+   double x = cos(result.alpha) * CosTheta + sin(result.alpha) * SinTheta;
+   double P = A * mass * result.vc * x;
+   
+   if (At < 0 || (!fAdjustP && P < pm) || (fAdjustP && P < pm && P > 0.999 * pm))
+    break;
+
+   if (!fAdjustP)
+   {
+    fAdjustP = 1;
+    At1 = At;
+    P1 = P;
+   }
+   else
+   {
+    if (P >= pm)
+    {
+     At1 = At;
+     P1 = P;
+    }
+    else
+    {
+     At0 = At;
+     P0 = P;
+    }
+   }
+
+   At = At0 + (0.9995 * pm - P0) * (At1 - At0) / (P1 - P0);
+  }
+  else
+  {
+   result.alpha = 0;
+   result.vc = 0;
+  }
+ }
+
+ return At;
+}
+
+
+/////////////////////////////////////////////////////////////////////////////
 // Draw a path (use gnuplot)
 /////////////////////////////////////////////////////////////////////////////
 #ifdef WRITE_FILES
 void CK1999Path::DrawPath(ostream &out) const
 {
- for (int i = 0; i <= Divs; i++)
+ for (int i = 0; i <= *Divs; i++)
  {
-  int j = i % Divs;
+  int j = i % *Divs;
   out << txLeft[j] << ' ' << tyLeft[j] << ' ';
   out << tx[j] << ' ' << ty[j] << ' ';
   out << txRight[j] << ' ' << tyRight[j] << '\n';
@@ -314,16 +484,16 @@ double CK1999Path::GetCurvature(int prev, double x, double y, int next) const
 /////////////////////////////////////////////////////////////////////////////
 void CK1999Path::AnalyzePath(int Step)
 {
- int prev = ((Divs - Step) / Step) * Step;
+ int prev = ((*Divs - Step) / Step) * Step;
  int next = Step;
 
- for (int i = 0; i <= Divs - Step; i += Step)
+ for (int i = 0; i <= *Divs - Step; i += Step)
  {
   double Curvature = GetCurvature(prev, tx[i], ty[i], next);
 
   double MaxSpeed;
-  if (fabs(Curvature) > TireAccel / (300 * 300))
-   MaxSpeed = sqrt(TireAccel / fabs(Curvature));
+  if (fabs(Curvature) > *TireAccel / (300 * 300))
+   MaxSpeed = sqrt(*TireAccel / fabs(Curvature));
   else
    MaxSpeed = 300;
 
@@ -333,7 +503,7 @@ void CK1999Path::AnalyzePath(int Step)
 
   prev = i;
   next += Step;
-  if (next > Divs - Step)
+  if (next > *Divs - Step)
    next = 0;
  }
 }
@@ -343,7 +513,7 @@ void CK1999Path::AnalyzePath(int Step)
 /////////////////////////////////////////////////////////////////////////////
 void CK1999Path::AnticipateBraking(int Step)
 {
- const int last = ((Divs - Step) / Step) * Step;
+ const int last = ((*Divs - Step) / Step) * Step;
  for (int i = last; i -= Step >= 0;)
  {
   int prev = i - Step;
@@ -357,7 +527,7 @@ void CK1999Path::AnticipateBraking(int Step)
   {
    double Speed = (tSpeed[i] + tSpeed[prev]) / 2;
    double LatA = Speed * Speed * (tCurvature[prev] + tCurvature[i]) / 2;
-   double TanA2 = TireAccel * TireAccel - LatA * LatA;
+   double TanA2 = *TireAccel * *TireAccel - LatA * LatA;
    double TanA = (TanA2 < 0 ? 0 : sqrt(TanA2));
    double Drag = (DRAG_CON * Speed * Speed) / (M + MAX_FUEL / g);
    double Time = dist / Speed;
@@ -379,12 +549,12 @@ void CK1999Path::AnticipateBraking(int Step)
 double CK1999Path::EstimateSpeed(int Step)
 {
  double TotalTime;
- const int last = ((Divs - Step) / Step) * Step;
+ const int last = ((*Divs - Step) / Step) * Step;
  tEstimatedSpeed[last] = tSpeed[last];
  for (int j = 2; --j >= 0;)
  {
   TotalTime = 0;
-  for (int i = 0, prev = last; i < Divs; prev = i, i += Step)
+  for (int i = 0, prev = last; i < *Divs; prev = i, i += Step)
   { // ??? should iterate like when braking ?
    double Speed = tEstimatedSpeed[prev];
    double Drag = (DRAG_CON * Speed * Speed) / M;
@@ -395,13 +565,13 @@ double CK1999Path::EstimateSpeed(int Step)
 #if 0
    double TanA = pm / (M * Speed);
 #else
-   double TanA2 = TireAccel * TireAccel - LatA * LatA;
+   double TanA2 = *TireAccel * *TireAccel - LatA * LatA;
    double TanA = (TanA2 > 0 ? sqrt(TanA2) : 0);
    if (TanA2 < 0)
     if (LatA > 0)
-     LatA = TireAccel;
+     LatA = *TireAccel;
     else
-     LatA = -TireAccel;
+     LatA = -*TireAccel;
    con_vec result;
    TanA = GetControl(TanA, LatA, Speed, M, result, pm);
 #endif
@@ -412,7 +582,7 @@ double CK1999Path::EstimateSpeed(int Step)
   }
  }
 
- return MPH_FPS * TrackLength / TotalTime;
+ return MPH_FPS * *TrackLength / TotalTime;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -453,8 +623,8 @@ void CK1999Path::AdjustRadius(int prev,
  {
   tLane[i] += (dLane / dCurvature) * TargetCurvature;
 
-  double ExtLane = (SideDistExt + Security) / Track.width;
-  double IntLane = (SideDistInt + Security) / Track.width;
+  double ExtLane = (*SideDistExt + Security) / Track->width;
+  double IntLane = (*SideDistInt + Security) / Track->width;
   if (ExtLane > 0.5)
    ExtLane = 0.5;
   if (IntLane > 0.5)
@@ -494,7 +664,7 @@ void CK1999Path::AdjustRadius(int prev,
 /////////////////////////////////////////////////////////////////////////////
 void CK1999Path::Smooth(int Step, int PathType)
 {
- int prev1 = ((Divs - Step) / Step) * Step;
+ int prev1 = ((*Divs - Step) / Step) * Step;
  int prev2 = prev1 - Step;
  int prev3 = prev2 - Step;
  int next1 = Step;
@@ -503,7 +673,7 @@ void CK1999Path::Smooth(int Step, int PathType)
 
  FATAL(prev3 <= next3);
 
- for (int i = 0; i <= Divs - Step; i += Step)
+ for (int i = 0; i <= *Divs - Step; i += Step)
  {
   if (!tfConst[i])
   {
@@ -517,7 +687,7 @@ void CK1999Path::Smooth(int Step, int PathType)
    {
     double ac1 = fabs(c1);
     double ac2 = fabs(c2);
-    double v = sqrt(TireAccel * 2 / (ac1 + ac2));
+    double v = sqrt(*TireAccel * 2 / (ac1 + ac2));
 
     switch (PathType)
     {
@@ -568,7 +738,7 @@ void CK1999Path::Smooth(int Step, int PathType)
   next1 = next2;
   next2 = next3;
   next3 = next3 + Step;
-  if (next3 > Divs - Step)
+  if (next3 > *Divs - Step)
    next3 = 0;
  }
 }
@@ -578,16 +748,16 @@ void CK1999Path::Smooth(int Step, int PathType)
 /////////////////////////////////////////////////////////////////////////////
 void CK1999Path::StepInterpolate(int iMin, int iMax, int Step)
 {
- int next = (iMax + Step) % Divs;
- if (next > Divs - Step)
+ int next = (iMax + Step) % *Divs;
+ if (next > *Divs - Step)
   next = 0;
 
- int prev = (((Divs + iMin - Step) % Divs) / Step) * Step;
- if (prev > Divs - Step)
+ int prev = (((*Divs + iMin - Step) % *Divs) / Step) * Step;
+ if (prev > *Divs - Step)
   prev -= Step;
 
- double c0 = GetCurvature(prev, tx[iMin], ty[iMin], iMax % Divs);
- double c1 = GetCurvature(iMin, tx[iMax % Divs], ty[iMax % Divs], next);
+ double c0 = GetCurvature(prev, tx[iMin], ty[iMin], iMax % *Divs);
+ double c1 = GetCurvature(iMin, tx[iMax % *Divs], ty[iMax % *Divs], next);
  double v0 = tEstimatedSpeed[iMin];
  double v1 = tEstimatedSpeed[iMax];
 
@@ -596,7 +766,7 @@ void CK1999Path::StepInterpolate(int iMin, int iMax, int Step)
   {
    double x = double(k - iMin) / double(iMax - iMin);
    double TargetCurvature = x * c1 + (1 - x) * c0;
-   AdjustRadius(iMin, k, iMax % Divs, TargetCurvature);
+   AdjustRadius(iMin, k, iMax % *Divs, TargetCurvature);
    tEstimatedSpeed[k] = x * v1 + (1 - x) * v0;
   }
 }
@@ -609,9 +779,9 @@ void CK1999Path::Interpolate(int Step)
  if (Step > 1)
  {
   int i;
-  for (i = Step; i <= Divs - Step; i += Step)
+  for (i = Step; i <= *Divs - Step; i += Step)
    StepInterpolate(i - Step, i, Step);
-  StepInterpolate(i - Step, Divs, Step);
+  StepInterpolate(i - Step, *Divs, Step);
  }
 }
 
@@ -625,7 +795,7 @@ void CK1999Path::ComputeFullPath(int PathType)
  //
  int MaxStep = 1;
  {
-  int i = Divs / 10;
+  int i = *Divs / 10;
   while (i /= 2)
    MaxStep *= 2;
  }
@@ -650,29 +820,6 @@ void CK1999Path::ComputeFullPath(int PathType)
  //
  AnalyzePath();
  AnticipateBraking();
-}
-
-/////////////////////////////////////////////////////////////////////////////
-// Interpolate between points with a line
-/////////////////////////////////////////////////////////////////////////////
-double CInterpolationContext::LinearInterpolation(const double *pd) const
-{
- return pd[i1] * (1 - t) + pd[i2] * t;
-}
-
-/////////////////////////////////////////////////////////////////////////////
-// Interpolate between points with a cubic spline
-/////////////////////////////////////////////////////////////////////////////
-double CInterpolationContext::CubicInterpolation(const double *pd) const
-{
- double x0 = pd[i1];
- double x3 = pd[i2];
- double der1 = (pd[i2] - pd[i0]) * (d2 - d1) / (d2 - d0);
- double der2 = (pd[i3] - pd[i1]) * (d2 - d1) / (d3 - d1);
- double x1 = x0 + der1 / 3;
- double x2 = x3 - der2 / 3;
-
- return x0 * a0 + x1 * a1 + x2 * a2 + x3 * a3;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -711,8 +858,8 @@ double CK1999Path::GetGamma(const CInterpolationContext &ic) const
 /////////////////////////////////////////////////////////////////////////////
 void CK1999Path::Optimize()
 {
- const double LaneMinInt = SideDistInt / Track.width;
- const double LaneMinExt = SideDistExt / Track.width;
+ const double LaneMinInt = *SideDistInt / Track->width;
+ const double LaneMinExt = *SideDistExt / Track->width;
  const double LaneMaxInt = 1 - LaneMinInt;
  const double LaneMaxExt = 1 - LaneMinExt;
 
@@ -724,14 +871,14 @@ void CK1999Path::Optimize()
   int Tries[MaxDivs];
   int i;
 
-  for (i = Divs; --i >= 0;)
+  for (i = *Divs; --i >= 0;)
    Tries[i] = 0;
 
-  for (i = 0; i < Divs - IndexStep; i += IndexStep)
+  for (i = 0; i < *Divs - IndexStep; i += IndexStep)
   {
    ComputeFullPath(CK1999Path::K1999);
    double s0 = EstimateSpeed();
-   OUTPUT("Optimizing lane number " << i << " / " << Divs << " (pass " << Pass << ")");
+   OUTPUT("Optimizing lane number " << i << " / " << *Divs << " (pass " << Pass << ")");
    OUTPUT("Reference estimated lap speed = " << s0 << " mph");
    int OldfConst = tfConst[i];
    tfConst[i] = 1;
@@ -785,156 +932,10 @@ void CK1999Path::Optimize()
  ofs << "\", " << EstimateSpeed();
  ofs << ", " << args.m_iSurface; 
  ofs << ", \"";
- for (int i = 0; i < Divs; i++)
+ for (int i = 0; i < *Divs; i++)
   if (tfConst[i])
    ofs << ' ' << i << ' ' << tLane[i];
  ofs << "\"}\n";
-}
-
-/////////////////////////////////////////////////////////////////////////////
-// Initialize path data
-/////////////////////////////////////////////////////////////////////////////
-static void Initialize(double pm)
-{
-  
- SideDistExt = 4.0;
- SideDistInt = 0.5;
- TireAccel = g * tFriction[args.m_iSurface];
- Track = get_track_description();
- SplitTrack();
- pathK1999.Reset();
- OUTPUT(currentTrack->m_sFileName);
- pathK1999.pm = pm;
- pathK2001.pm = pm;
- pathEmergency.pm = pm;
-
- //
- // Offset distance ??? first segment must be a straight
- //
- {
-  double Offset = Track.seg_dist[0] - Track.rgtwall[0].length;
-  for (int i = Divs; --i >= 0;)
-  {
-   tDistance[i] += Offset;
-   if (tDistance[i] < 0.0) 
-    tDistance[i] += Track.length;
-  }
- }
-
- //
- // Try to get data from the pre-computed array
- //
- int fPreComputed = 0;
- for (int i = sizeof(ttd) / sizeof(*ttd); --i >= 0;)
-  if (!strcmp(ttd[i].pszName, currentTrack->m_sFileName) &&
-      ttd[i].surface == args.m_iSurface ) // ??? random
-  {
-   istrstream istr((char *)ttd[i].pszControlPoints);
-   while(1)
-   {
-    int i = 0;
-    double l = pathK1999.tLane[i];
-    istr >> i >> l;
-    if (istr.eof())
-     break;
-    pathK1999.tLane[i] = l;
-    pathK1999.UpdateTxTy(i);
-    pathK1999.tfConst[i] = 1;
-    if (l < SideDistInt / Track.width || l > 1 - SideDistInt / Track.width)
-     OUTPUT("Lane optimization problem");
-   }
-   OUTPUT("Pre-computed data read");
-   fPreComputed = 1;
-   break;
-  }
-
- //
- // Path optimization
- //
- {
-  OUTPUT("Optimizing K1999 path...");
-  if (!fPreComputed)
-  {
-#ifdef OPTIMIZE
-   pathK1999.Optimize();
-#else
-   OUTPUT("No pre-computed data available !");
-   pathK1999.ComputeFullPath(CK1999Path::K1999);
-#endif
-  }
-  else
-   pathK1999.ComputeFullPath(CK1999Path::K1999);
-  double Speed = pathK1999.EstimateSpeed();
-  OUTPUT("Estimated speed = " << Speed);
- }
-
- //
- // Optionaly write data to file
- //
-#ifdef WRITE_FILES
- {
-  OUTPUT("Writing output file...");
-  ofstream ofs("k1999.path", ios::out);
-  pathK1999.DrawPath(ofs);
-  OUTPUT("done.");
- }
-#endif
-
-#ifdef WRITE_FILES
- //
- // Write data to file
- //
- {
-  pathK1999.EstimateSpeed();
-  ofstream ofs("k1999.data");
-  double PrevDist = 100000000;
-  for (int i = Divs + 1; --i >= 0;)
-  {
-   int j = i % Divs;
-   if (tDistance[j] > PrevDist)
-    ofs << '\n';
-   ofs << tDistance[j];
-   ofs << ' ' << pathK1999.tLane[j];
-   ofs << ' ' << pathK1999.GetCurvature((j + Divs - 1) % Divs,
-                                       pathK1999.tx[j],
-                                       pathK1999.ty[j],
-                                       (j + 1) % Divs); 
-   ofs << ' ' << pathK1999.tx[j];
-   ofs << ' ' << pathK1999.ty[j];
-   ofs << ' ' << pathK1999.tMaxSpeed[j];
-   ofs << ' ' << pathK1999.tSpeed[j];
-   ofs << ' ' << pathK1999.tEstimatedSpeed[j];
-   ofs << '\n';
-   PrevDist = tDistance[j];
-  }
-  ofs << '\n';
- }
-#endif
-
- //
- // K2001 path
- //
- {
-  OUTPUT("Optimizing K2001 path...");
-  pathK2001.Reset();
-  pathK2001.ComputeFullPath(CK1999Path::K2001);
-  double Speed = pathK2001.EstimateSpeed();
-  OUTPUT("Average speed = " << Speed);
- }
-
- //
- // Emergency path
- //
- {
-  OUTPUT("Emergency path...");
-  SideDistExt = 2 * CARWID;
-  SideDistInt = 2 * CARWID;
-  pathEmergency.Reset();
-  pathEmergency.ComputeFullPath(CK1999Path::K1999);
-  double Speed = pathEmergency.EstimateSpeed();
-  OUTPUT("Average speed = " << Speed);
- }
-
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -949,7 +950,7 @@ class KDriver : public Driver
   int fInitialized;
   double PrevV;
   char sName[32];
-  const CK1999Path &path;
+  CK1999Path path;
   int Ind;
   int ID;
   double Distance;
@@ -984,13 +985,13 @@ class KDriver : public Driver
   CK1999Path pathK2001;
   CK1999Path pathEmergency;
 
-  KDriver(char * sNameInit, CK1999Path &pathInit) :
+  KDriver(char * sNameInit) :
 #ifdef LOG_DATA
    ofsLog((sNameInit + ".log").c_str()),
 #endif
    fInitialized(0),
    PrevV(0),
-   path(pathInit),
+   //   path(p1999),
    Ind(0),
    ID(0),
    Distance(0),
@@ -1006,25 +1007,89 @@ class KDriver : public Driver
    TotalFuel(0),
    PrevFuel(0)
    {
+
+  //  new DriverOld( K1999,     oBLACK,     oBLACK,      "car_black_black",  NULL,     "K1999" ),
+  //  new DriverOld( K2001,     oBLACK,     oBLACK,      "car_black_black",  NULL,     "K2001" ),
+
+     if(strcmp(sNameInit, "K2001") == 0)
+       path = pathK2001;
+     else
+       path = pathK1999;
+
+     m_iNoseColor = oBLACK;
+     m_iTailColor = oBLACK;
+     m_sBitmapName2D = "car_black_black";
+     m_sModel3D = NULL;
+     m_sName = sNameInit;
+
      SideDistExt = 4.0; // Security distance wrt outside
      SideDistInt = 0.5; // Security distance wrt inside
 
-     ic.kd = this;
-     icNext.kd = this;
-
      strcpy( sName, sNameInit );
+
+     path.txRight = txRight;
+     path.txLeft = txLeft;
+     path.tyRight = tyRight;
+     path.tyLeft = tyLeft;
+     path.Divs = &Divs;
+     path.TireAccel = &TireAccel;
+     path.SideDistInt = &SideDistInt;
+     path.SideDistExt = &SideDistExt;
+     path.TrackLength = &TrackLength;
+     path.Track = &Track;
+
+     pathK1999.txRight = txRight;
+     pathK1999.txLeft = txLeft;
+     pathK1999.tyRight = tyRight;
+     pathK1999.tyLeft = tyLeft;
+     pathK1999.Divs = &Divs;
+     pathK1999.TireAccel = &TireAccel;
+     pathK1999.SideDistInt = &SideDistInt;
+     pathK1999.SideDistExt = &SideDistExt;
+     pathK1999.TrackLength = &TrackLength;
+     pathK1999.Track = &Track;
+
+     pathK2001.txRight = txRight;
+     pathK2001.txLeft = txLeft;
+     pathK2001.tyRight = tyRight;
+     pathK2001.tyLeft = tyLeft;
+     pathK2001.Divs = &Divs;
+     pathK2001.TireAccel = &TireAccel;
+     pathK2001.SideDistInt = &SideDistInt;
+     pathK2001.SideDistExt = &SideDistExt;
+     pathK2001.TrackLength = &TrackLength;
+     pathK2001.Track = &Track;
+
+     pathEmergency.txRight = txRight;
+     pathEmergency.txLeft = txLeft;
+     pathEmergency.tyRight = tyRight;
+     pathEmergency.tyLeft = tyLeft;
+     pathEmergency.Divs = &Divs;
+     pathEmergency.TireAccel = &TireAccel;
+     pathEmergency.SideDistInt = &SideDistInt;
+     pathEmergency.SideDistExt = &SideDistExt;
+     pathEmergency.TrackLength = &TrackLength;
+     pathEmergency.Track = &Track;
+
+
+
+     //     K1999Driver("K1999", pathK1999);
+     //     K2001Driver("K2001", pathK2001);
+
    }
 
+  void Initialize(double pm);
+  int GetIndex(double Dist, int Hint = 0);
+  void SplitTrack();
 
-  con_vec Drive(situation &s);
-}
-K1999Driver("K1999", pathK1999),
-K2001Driver("K2001", pathK2001);
+  con_vec drive(situation &s);
+
+};
 
 /////////////////////////////////////////////////////////////////////////////
 // Main driver function
 /////////////////////////////////////////////////////////////////////////////
-con_vec KDriver::Drive(situation &s)
+con_vec KDriver::drive(situation &s)
 {
  //
  // Tell our name to the host on the first call
@@ -1056,9 +1121,12 @@ con_vec KDriver::Drive(situation &s)
  // Find target values in data arrays
  //
  Distance = s.distance;
- ic.SetDistance(Distance);
+ int ii = GetIndex(Distance, ic.i1);
+ ic.SetDistance(Divs, ii, Distance, tDistance, Track);
  double HalfStep = s.v * delta_time * 0.5 * path.GetGamma(ic);
- icNext.SetDistance(Distance + HalfStep);
+
+ ii = GetIndex(Distance + HalfStep, icNext.i1);
+ icNext.SetDistance(Divs, ii, Distance + HalfStep, tDistance, Track);
 
  CurrentLane = ic.CubicInterpolation(path.tLane);
  CurrentVn = s.v * path.GetTanTheta(ic);
@@ -1156,12 +1224,12 @@ con_vec KDriver::Drive(situation &s)
  // If K1999 is close, let him pass since he is the leader
  //
  State = 2;
- if (race_data.cars[K1999Driver.ID]->Out ||
+ /* if (race_data.cars[K1999Driver.ID]->Out ||
      race_data.cars[K1999Driver.ID]->On_pit_lane ||
      race_data.cars[K1999Driver.ID]->Coming_from_pits ||
      race_data.cars[K1999Driver.ID]->Pitting)
-  K1999Driver.State = 0;
- if (ID == K2001Driver.ID && K1999Driver.State && s.stage != QUALIFYING)
+     K1999Driver.State = 0;*/
+ /* if (ID == K2001Driver.ID && K1999Driver.State && s.stage != QUALIFYING)
  {
   double Dist = K1999Driver.Distance - Distance;
   if (Dist < -TrackLength / 2)
@@ -1180,7 +1248,7 @@ con_vec KDriver::Drive(situation &s)
   else if (Dist >= 0 && Dist <= 5 * CARLEN)
    TargetSpeed = Max(10, K1999Driver.v - 10);
  }
- else
+ else*/
   PassSide = 0;
 
  //
@@ -1342,7 +1410,7 @@ con_vec KDriver::Drive(situation &s)
 /////////////////////////////////////////////////////////////////////////////
 // Find largest index before Dist
 /////////////////////////////////////////////////////////////////////////////
-int KDriver::GetIndex(double Dist, int Hint = 0)
+int KDriver::GetIndex(double Dist, int Hint)
 {
  while (Dist > Track.length)
   Dist -= Track.length;
@@ -1373,75 +1441,6 @@ int KDriver::GetIndex(double Dist, int Hint = 0)
  return i;
 }
 
-/////////////////////////////////////////////////////////////////////////////
-// Get control from acceleration
-/////////////////////////////////////////////////////////////////////////////
-double KDriver::GetControl(double At,
-                         double An,
-                         double v,
-                         double mass,
-                         con_vec &result, double pm)
-{
- int fAdjustP = 0;
- double At1 = 0;
- double P1 = 0;
- double At0 = 0;
- double P0 = 0;
- int Loops = 0;
-
- while(1)
- {
-  if (++Loops >= 40)
-  {
-   OUTPUT("Control problem");
-   return At0;
-  }
-
-  double A = Mag(At, An);
-  if (A > 0)
-  {
-   double L = InverseFriction(A / g);
-   double SinTheta = An / A;
-   double CosTheta = At / A;
-   result.alpha = atan((L * SinTheta) / (L * CosTheta + v));
-   result.vc = (L * CosTheta + v) / cos(result.alpha);
-   double x = cos(result.alpha) * CosTheta + sin(result.alpha) * SinTheta;
-   double P = A * mass * result.vc * x;
-   
-   if (At < 0 || (!fAdjustP && P < pm) || (fAdjustP && P < pm && P > 0.999 * pm))
-    break;
-
-   if (!fAdjustP)
-   {
-    fAdjustP = 1;
-    At1 = At;
-    P1 = P;
-   }
-   else
-   {
-    if (P >= pm)
-    {
-     At1 = At;
-     P1 = P;
-    }
-    else
-    {
-     At0 = At;
-     P0 = P;
-    }
-   }
-
-   At = At0 + (0.9995 * pm - P0) * (At1 - At0) / (P1 - P0);
-  }
-  else
-  {
-   result.alpha = 0;
-   result.vc = 0;
-  }
- }
-
- return At;
-}
 
 /////////////////////////////////////////////////////////////////////////////
 // Split the track into slices
@@ -1547,75 +1546,170 @@ lblRetry:
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// Class for cubic and linear interpolation
+// Initialize path data
 /////////////////////////////////////////////////////////////////////////////
-class CInterpolationContext // ic
+void KDriver::Initialize(double pm)
 {
- public:
-  CInterpolationContext() : i1(0) {}
-  void SetDistance(double Dist);
-  KDriver kd;
+  
+ SideDistExt = 4.0;
+ SideDistInt = 0.5;
+ TireAccel = g * tFriction[args.m_iSurface];
+ Track = get_track_description();
+ SplitTrack();
+ pathK1999.Reset();
+ OUTPUT(currentTrack->m_sFileName);
+ pathK1999.pm = pm;
+ pathK2001.pm = pm;
+ pathEmergency.pm = pm;
 
-  int i0;
-  int i1;
-  int i2;
-  int i3;
-  double d0;
-  double d1;
-  double d2;
-  double d3;
-  double t;
-  double a0;
-  double a1;
-  double a2;
-  double a3;
+ //
+ // Offset distance ??? first segment must be a straight
+ //
+ {
+  double Offset = Track.seg_dist[0] - Track.rgtwall[0].length;
+  for (int i = Divs; --i >= 0;)
+  {
+   tDistance[i] += Offset;
+   if (tDistance[i] < 0.0) 
+    tDistance[i] += Track.length;
+  }
+ }
 
-  double CubicInterpolation(const double *pd) const;
-  double LinearInterpolation(const double *pd) const;
-};
+ //
+ // Try to get data from the pre-computed array
+ //
+ int fPreComputed = 0;
+ for (int i = sizeof(ttd) / sizeof(*ttd); --i >= 0;)
+  if (!strcmp(ttd[i].pszName, currentTrack->m_sFileName) &&
+      ttd[i].surface == args.m_iSurface ) // ??? random
+  {
+   istrstream istr((char *)ttd[i].pszControlPoints);
+   while(1)
+   {
+    int i = 0;
+    double l = pathK1999.tLane[i];
+    istr >> i >> l;
+    if (istr.eof())
+     break;
+    pathK1999.tLane[i] = l;
+    pathK1999.UpdateTxTy(i);
+    pathK1999.tfConst[i] = 1;
+    if (l < SideDistInt / Track.width || l > 1 - SideDistInt / Track.width)
+     OUTPUT("Lane optimization problem");
+   }
+   OUTPUT("Pre-computed data read");
+   fPreComputed = 1;
+   break;
+  }
 
-/////////////////////////////////////////////////////////////////////////////
-// Find discrete position for interpolation context
-/////////////////////////////////////////////////////////////////////////////
-void CInterpolationContext::SetDistance(double Dist)
+ //
+ // Path optimization
+ //
+ {
+  OUTPUT("Optimizing K1999 path...");
+  if (!fPreComputed)
+  {
+#ifdef OPTIMIZE
+   pathK1999.Optimize();
+#else
+   OUTPUT("No pre-computed data available !");
+   pathK1999.ComputeFullPath(CK1999Path::K1999);
+#endif
+  }
+  else
+   pathK1999.ComputeFullPath(CK1999Path::K1999);
+  double Speed = pathK1999.EstimateSpeed();
+  OUTPUT("Estimated speed = " << Speed);
+ }
+
+ //
+ // Optionaly write data to file
+ //
+#ifdef WRITE_FILES
+ {
+  OUTPUT("Writing output file...");
+  ofstream ofs("k1999.path", ios::out);
+  pathK1999.DrawPath(ofs);
+  OUTPUT("done.");
+ }
+#endif
+
+#ifdef WRITE_FILES
+ //
+ // Write data to file
+ //
+ {
+  pathK1999.EstimateSpeed();
+  ofstream ofs("k1999.data");
+  double PrevDist = 100000000;
+  for (int i = Divs + 1; --i >= 0;)
+  {
+   int j = i % Divs;
+   if (tDistance[j] > PrevDist)
+    ofs << '\n';
+   ofs << tDistance[j];
+   ofs << ' ' << pathK1999.tLane[j];
+   ofs << ' ' << pathK1999.GetCurvature((j + Divs - 1) % Divs,
+                                       pathK1999.tx[j],
+                                       pathK1999.ty[j],
+                                       (j + 1) % Divs); 
+   ofs << ' ' << pathK1999.tx[j];
+   ofs << ' ' << pathK1999.ty[j];
+   ofs << ' ' << pathK1999.tMaxSpeed[j];
+   ofs << ' ' << pathK1999.tSpeed[j];
+   ofs << ' ' << pathK1999.tEstimatedSpeed[j];
+   ofs << '\n';
+   PrevDist = tDistance[j];
+  }
+  ofs << '\n';
+ }
+#endif
+
+ //
+ // K2001 path
+ //
+ {
+  OUTPUT("Optimizing K2001 path...");
+  pathK2001.Reset();
+  pathK2001.ComputeFullPath(CK1999Path::K2001);
+  double Speed = pathK2001.EstimateSpeed();
+  OUTPUT("Average speed = " << Speed);
+ }
+
+ //
+ // Emergency path
+ //
+ {
+  OUTPUT("Emergency path...");
+  SideDistExt = 2 * CARWID;
+  SideDistInt = 2 * CARWID;
+  pathEmergency.Reset();
+  pathEmergency.ComputeFullPath(CK1999Path::K1999);
+  double Speed = pathEmergency.EstimateSpeed();
+  OUTPUT("Average speed = " << Speed);
+ }
+
+}
+
+     //     K1999Driver("K1999", pathK1999);
+     //     K2001Driver("K2001", pathK2001);
+
+
+Driver * getK1999DriverInstance()
 {
- i1 = kd.GetIndex(Dist, i1);
- i0 = (i1 + Divs - 1) % Divs;
- i2 = (i1 + 1) % Divs;
- i3 = (i1 + 2) % Divs;
+  return new KDriver("K1999");
+}
 
- d0 = tDistance[i0];
- d1 = tDistance[i1];
- d2 = tDistance[i2];
- d3 = tDistance[i3];
-
- if (d0 > d1)
-  d0 -= Track.length;
- if (d1 > Dist)
- {
-  d0 -= Track.length;
-  d1 -= Track.length;
- }
- if (Dist > d2)
- {
-  d2 += Track.length;
-  d3 += Track.length;
- }
- if (d2 > d3)
-  d3 += Track.length;
-
- t = (Dist - d1) / (d2 - d1);
- a0 = (1 - t) * (1 - t) * (1 - t);
- a1 = 3 * (1 - t) * (1 - t) * t;
- a2 = 3 * (1 - t) * t * t;
- a3 = t * t * t;
+Driver * getK2001DriverInstance()
+{
+  return new KDriver("K2001");
 }
 
 
 /////////////////////////////////////////////////////////////////////////////
 // One function for each car
 /////////////////////////////////////////////////////////////////////////////
-con_vec K2001(situation &s)
+/*con_vec K2001(situation &s)
 {
  if (K1999Driver.State > 0)
   K1999Driver.State--;
@@ -1625,4 +1719,4 @@ con_vec K2001(situation &s)
 con_vec K1999(situation &s)
 {
  return K1999Driver.Drive(s);
-}
+ }*/

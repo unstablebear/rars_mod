@@ -37,8 +37,8 @@ robot Felix16;
 robot Gryma1;
 robot Jammer;
 robot Jas;
-robot K1999;
-robot K2001;
+//robot K1999;
+//robot K2001;
 robot Magic;
 robot Mat1;
 robot O1;
@@ -67,6 +67,8 @@ robot2 getTutorial4Instance;
 robot2 getWappuCarInstance;
 robot2 getDodger6Instance;
 robot2 getJocosa83Instance;
+robot2 getK1999DriverInstance;
+robot2 getK2001DriverInstance;
 
 #ifndef X_WINDOWS
   // Human robots do not exist in XWindows
@@ -91,8 +93,10 @@ Driver * drivers[] =
   getDodger6Instance(),
   getJocosa83Instance(),
   new DriverOld( Sparky5,   oRED,       oBLACK,      "car_red_black",    NULL,     "Sparky5" ),
-  new DriverOld( K1999,     oBLACK,     oBLACK,      "car_black_black",  NULL,     "K1999" ),
-  new DriverOld( K2001,     oBLACK,     oBLACK,      "car_black_black",  NULL,     "K2001" ),
+  //  new DriverOld( K1999,     oBLACK,     oBLACK,      "car_black_black",  NULL,     "K1999" ),
+  //  new DriverOld( K2001,     oBLACK,     oBLACK,      "car_black_black",  NULL,     "K2001" ),
+  getK1999DriverInstance(),
+  getK2001DriverInstance(),
   new DriverOld( Felix16,   oLIGHTGREEN,oLIGHTRED,   "car_lgreen_lred",  NULL,     "Felix16" ),
   new DriverOld( Apex1,     oLIGHTGRAY, oLIGHTGRAY,  "car_gray_gray",    NULL,     "Apex1" ),
   //new DriverOld( Dodger6,   oWHITE,     oBLACK,      "car_white_black",  NULL,     "Dodger6" ),
@@ -144,10 +148,12 @@ Driver* getDriver(char* driver_name)
     driver = new DriverOld( Sparky5,   oRED,       oBLACK,      "car_red_black",    NULL,     "Sparky5" );
   else
     if (strcmp(driver_name, "K1999") == 0) 
-      driver = new DriverOld( K1999,     oBLACK,     oBLACK,      "car_black_black",  NULL,     "K1999" );
+      driver = getK1999DriverInstance();
+      //      driver = new DriverOld( K1999,     oBLACK,     oBLACK,      "car_black_black",  NULL,     "K1999" );
     else
       if (strcmp(driver_name, "K2001") == 0) 
-	driver = new DriverOld( K2001,     oBLACK,     oBLACK,      "car_black_black",  NULL,     "K2001" );
+	driver = getK2001DriverInstance();
+	//driver = new DriverOld( K2001,     oBLACK,     oBLACK,      "car_black_black",  NULL,     "K2001" );
       else
 	if (strcmp(driver_name, "Jocosa83") == 0) 
 	  driver = getJocosa83Instance();
