@@ -950,7 +950,7 @@ class KDriver : public Driver
   int fInitialized;
   double PrevV;
   char sName[32];
-  CK1999Path path;
+  CK1999Path &path;
   int Ind;
   int ID;
   double Distance;
@@ -965,6 +965,7 @@ class KDriver : public Driver
   double PrevFuel;
   CInterpolationContext ic;
   CInterpolationContext icNext;
+  int TrackNumber;
 
   //$$$
 
@@ -981,11 +982,11 @@ class KDriver : public Driver
   double txRight[MaxDivs];
   double tyRight[MaxDivs];
 
-  CK1999Path pathK1999;
-  CK1999Path pathK2001;
+  CK1999Path &pathK1999;
+  CK1999Path &pathK2001;
   CK1999Path pathEmergency;
 
-  KDriver(char * sNameInit) :
+  KDriver(char * sNameInit, CK1999Path &p, CK1999Path &p1999, CK1999Path &p2001) :
 #ifdef LOG_DATA
    ofsLog((sNameInit + ".log").c_str()),
 #endif
@@ -1005,16 +1006,19 @@ class KDriver : public Driver
    TotalDamage(0),
    PrevDamage(0),
    TotalFuel(0),
-   PrevFuel(0)
+   PrevFuel(0),
+   path(p),
+   pathK1999(p1999),
+   pathK2001(p2001)
    {
 
   //  new DriverOld( K1999,     oBLACK,     oBLACK,      "car_black_black",  NULL,     "K1999" ),
   //  new DriverOld( K2001,     oBLACK,     oBLACK,      "car_black_black",  NULL,     "K2001" ),
 
-     if(strcmp(sNameInit, "K2001") == 0)
+     /*     if(strcmp(sNameInit, "K2001") == 0)
        path = pathK2001;
      else
-       path = pathK1999;
+     path = pathK1999;*/
 
      m_iNoseColor = oBLACK;
      m_iTailColor = oBLACK;
@@ -1071,7 +1075,7 @@ class KDriver : public Driver
      pathEmergency.TrackLength = &TrackLength;
      pathEmergency.Track = &Track;
 
-
+     TrackNumber = -1;
 
      //     K1999Driver("K1999", pathK1999);
      //     K2001Driver("K2001", pathK2001);
@@ -1109,7 +1113,6 @@ con_vec KDriver::drive(situation &s)
  // Initialize path data
  //
  {
-  static int TrackNumber = -1;
   if( args.m_iCurrentTrack!=TrackNumber && get_track_description().NSEG>0 )
   {
    Initialize(s.pm);
@@ -1697,12 +1700,16 @@ void KDriver::Initialize(double pm)
 
 Driver * getK1999DriverInstance()
 {
-  return new KDriver("K1999");
+  CK1999Path *pathK1999 = new CK1999Path();
+  CK1999Path *pathK2001 = new CK1999Path();
+  return new KDriver("K1999", *pathK1999, *pathK1999, *pathK2001);
 }
 
 Driver * getK2001DriverInstance()
 {
-  return new KDriver("K2001");
+  CK1999Path *pathK1999 = new CK1999Path();
+  CK1999Path *pathK2001 = new CK1999Path();
+  return new KDriver("K2001", *pathK2001, *pathK1999, *pathK2001);
 }
 
 
