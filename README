@@ -1,3 +1,19 @@
+Modified Rars
+=============
+This version of Rars based on 0.91.2 and has following modifications:
+
+ - it allows to start race with few instances of the same car type
+ - provides logging of cars moving and status(finished, position, time of race) in xml log
+ - id, power and initial damage on every car must be set in command line
+
+command line format:
+
+rars <interval_of_logging> <path_to_xml_log> [ -nd ] <number_of_cars_in_race> <number_of_laps> -d <car1_id> <car1_type> <car1_power> <car1_initial_damage> [<car2_...]
+
+example:
+
+./rars 1 /tmp/rars.log -nd 4 2 -d id_1 K1999 100000 4000 id_2 K2001 140000 4000 id_3 K1999 100000 4000 id_4 K2001 140000 4000
+
 Rars 
 ====
 If you have problem to install Rars consult 
