@@ -6,6 +6,8 @@ roman@AsRock:~/rars$ sudo ln -s /usr/bin/gcc-3.3 /usr/bin/gcc
 
 roman@AsRock:~/rars$ sudo apt-get remove cpp-4.2 
 roman@AsRock:~/rars$ sudo apt-get install cpp-3.3
+
+sudo apt-get install g++-3.3
 roman@AsRock:~/rars$ sudo ln -s /usr/bin/g++-3.3 /usr/bin/g++
 
 roman@AsRock:~/rars$ sudo apt-get install kde-devel
